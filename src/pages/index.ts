@@ -1,0 +1,7 @@
+export * from './DashboardPage'
+export * from './CharacterPage'
+export * from './WorkoutPage'
+export * from './BodyAnalysisPage'
+export * from './GoalsPlanningPage'
+export * from './HistoryAchievementsPage'
+export * from './SettingsPage'
