@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/Badge'
 import { Progress } from '@/components/ui/Progress'
 import { AvatarCanvas } from '@/components/avatar'
 import { PersonalRecords, ExerciseProgress } from '@/components/WorkoutHistory'
+import { BodyOverview } from '@/components/BodyComposition'
+import { useInBodyStore } from '@/stores'
 import {
   Dumbbell,
   ChevronRight,
@@ -23,6 +25,7 @@ export const DashboardPage: React.FC = () => {
   const { character, setMode } = useCharacterStore()
 
   const latestSession = sessions[0]
+  const { latestMeasurement, measurements } = useInBodyStore()
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
@@ -74,6 +77,7 @@ export const DashboardPage: React.FC = () => {
         </Card>)}
       </div>
       {!sessions.length && <p className="text-slate-400 text-sm">Chưa có tiến trình thực tế. Lưu buổi tập đầu tiên để bắt đầu.</p>}
+      <BodyOverview measurement={latestMeasurement} previous={measurements.at(-2)} />
       {/* Main Content Split: 3D Preview (Left) vs Quests & Recent Workouts (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* 3D Avatar Mini Viewport Card (5 Cols) */}

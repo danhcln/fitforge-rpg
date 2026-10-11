@@ -1,4 +1,5 @@
 import * as mocks from '@/mock'
+import { validateMeasurement } from '@/services/bodyComposition/validation'
 import { validateWorkout } from '@/services/workout/calculations'
 import type { WorkoutSession } from '@/types'
 
@@ -70,17 +71,13 @@ function shape(value: unknown, template: unknown, key = ''): void {
 }
 export function validateEntity(table: string, value: unknown): void {
   if (!examples[table]) throw new Error('Bảng không được hỗ trợ.')
+  if (table === 'bodyMeasurements') { validateMeasurement(value); return }
   shape(value, examples[table])
   const row = object(value)
   if (table === 'workoutSessions') validateWorkout(value as WorkoutSession, row.status !== 'draft')
   if (table === 'goals' && !['muscle_gain', 'fat_loss', 'strength', 'habit'].includes(String(row.category))) throw new Error('Loại mục tiêu không hợp lệ.')
   if (table === 'achievements' && !['workout', 'strength', 'inbody', 'streak', 'quest'].includes(String(row.category))) throw new Error('Loại danh hiệu không hợp lệ.')
   if (table === 'users' && Number(row.energy) > Number(row.maxEnergy)) throw new Error('Năng lượng vượt quá giới hạn.')
-  if (table === 'bodyMeasurements') {
-    const weight = Number(row.weightKg)
-    if (weight <= 0 || weight > 1000 || Number(row.bmi) <= 0 || Number(row.bmi) > 200 || Number(row.bmrKcal) <= 0 || Number(row.bmrKcal) > 10000) throw new Error('Chỉ số cơ thể nằm ngoài khoảng hợp lệ.')
-    for (const key of ['smmKg', 'bodyFatMassKg', 'bodyWaterKg', 'boneMassKg']) if (Number(row[key]) > weight) throw new Error(`${key} vượt quá cân nặng.`)
-  }
 }
 
 export const demoRows: Record<string, { id: string }[]> = {

@@ -54,6 +54,8 @@ export class FitForgeDatabase extends Dexie {
       // Preserve legacy PR rows; derived records use distinct IDs.
       await tx.table('personalRecords').bulkPut(calculatePersonalRecords(await tx.table('workoutSessions').toArray()))
     })
+    // Add an index only: legacy heights and device readings must not be invented or rewritten.
+    this.version(3).stores({ bodyMeasurements: 'id, date, source' })
   }
 
   flattenSets(session: WorkoutSession): StoredSet[] {
@@ -78,10 +80,32 @@ export class FitForgeDatabase extends Dexie {
   }
   async putEntity(tableName: string, row: unknown): Promise<void> {
     validateEntity(tableName, row)
+    if (tableName === 'bodyMeasurements' && object(row).source === 'demo') throw new Error('Không lưu dữ liệu mẫu thành phiếu đo thực tế.')
     if (['workoutSessions', 'personalRecords'].includes(tableName)) throw new Error('Dùng giao dịch buổi tập để cập nhật kỷ lục.')
     await this.transaction('rw', this.table(tableName), this.auditLog, async () => {
+      if (tableName === 'bodyMeasurements' && (await this.bodyMeasurements.get(String(object(row).id)))?.source === 'demo') throw new Error('Không ghi đè phiếu đo mẫu thành dữ liệu thực.')
       await this.table(tableName).put({ ...object(row), source: 'real' })
       await this.log('update', String(object(row).id))
+    })
+  }
+  async saveMeasurement(row: BodyMeasurement, editing = false): Promise<void> {
+    validateEntity('bodyMeasurements', row)
+    if (object(row).source === 'demo') throw new Error('Không lưu dữ liệu mẫu thành phiếu đo thực tế.')
+    await this.transaction('rw', this.bodyMeasurements, this.auditLog, async () => {
+      const previous = await this.bodyMeasurements.get(row.id)
+      if (previous?.source === 'demo') throw new Error('Không chỉnh sửa dữ liệu mẫu thành dữ liệu thực.')
+      if (editing && !previous) throw new Error('Phiếu đo đã bị xóa. Vui lòng mở lại lịch sử.')
+      if (!editing && previous) throw new Error('ID phiếu đo đã tồn tại.')
+      await this.bodyMeasurements.put({ ...row, source: 'real' })
+      await this.log(editing ? 'edit-measurement' : 'create-measurement', row.id)
+    })
+  }
+  async deleteMeasurement(id: string): Promise<void> {
+    await this.transaction('rw', this.bodyMeasurements, this.auditLog, async () => {
+      const previous = await this.bodyMeasurements.get(id)
+      if (!previous || previous.source === 'demo') return
+      await this.bodyMeasurements.delete(id)
+      await this.log('delete-measurement', id)
     })
   }
   async saveDraft(session: WorkoutSession): Promise<void> {
@@ -154,7 +178,7 @@ export class FitForgeDatabase extends Dexie {
   }
   async exportFullBackup(): Promise<Record<string, unknown>> {
     return this.transaction('r', this.tables, async () => {
-      const backup: Record<string, unknown> = { version: 2, exportedAt: new Date().toISOString() }
+      const backup: Record<string, unknown> = { version: 3, exportedAt: new Date().toISOString() }
       for (const name of Object.keys(examples)) backup[name === 'users' ? 'user' : name] = await this.table(name).toArray()
       backup.auditLog = await this.auditLog.toArray()
       return backup
@@ -162,7 +186,7 @@ export class FitForgeDatabase extends Dexie {
   }
   async importBackup(input: unknown): Promise<number> {
     const backup = object(input)
-    if (![1, 2].includes(Number(backup.version)) || typeof backup.version !== 'number') throw new Error('Phiên bản sao lưu không được hỗ trợ.')
+    if (![1, 2, 3].includes(Number(backup.version)) || typeof backup.version !== 'number') throw new Error('Phiên bản sao lưu không được hỗ trợ.')
     const rows: Record<string, Record<string, unknown>[]> = {}
     for (const name of Object.keys(examples)) {
       const entries = backup[name === 'users' ? 'user' : name]

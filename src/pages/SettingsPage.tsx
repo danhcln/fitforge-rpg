@@ -95,7 +95,7 @@ export const SettingsPage: React.FC = () => {
             <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">TÊN CƠ SỞ DỮ LIỆU</span>
               <strong className="text-white mt-0.5 block font-mono">FitForgeRPG_DB</strong>
-              <span className="text-[10px] text-slate-400">Phiên bản schema 2</span>
+              <span className="text-[10px] text-slate-400">Phiên bản schema 3</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">

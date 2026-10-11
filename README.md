@@ -1,3 +1,6 @@
+# Phase 3 — InBody & Body Composition Engine
+
+Local measurement creation, editing, confirmed deletion, nullable report readings, body calculations, report-based classifications, four history charts and current/target comparisons are implemented. [Phase 3 report](docs/PHASE_3_REPORT.md) lists verification and limitations; [body contract](docs/BODY_COMPOSITION.md) documents provenance, migrations and artistic avatar mapping. The existing procedural renderer still uses separate manual customization; measured morphing starts only in Phase 4.
 # Phase 2 — Core Workout Tracking
 
 Local-first workout tracking is implemented. See [the Phase 2 report](docs/PHASE_2_REPORT.md) for audit results, migration/restore rules, tests and deferred work. Existing navigation, dark RPG components and the procedural 3D avatar are preserved. Avatar parameters remain manual in this phase.

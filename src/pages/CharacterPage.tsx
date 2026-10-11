@@ -6,6 +6,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { User, Shield, Sparkles, Info, Check } from 'lucide-react'
+import { BodyTargets } from '@/components/BodyComposition'
+import { formatBodyValue, mappingInputLabels } from '@/services/bodyComposition/presentation'
 
 export const CharacterPage: React.FC = () => {
   const { latestMeasurement } = useInBodyStore()
@@ -17,6 +19,7 @@ export const CharacterPage: React.FC = () => {
     toggleAura,
     resetToDefault,
     error,
+    measuredBody, goalBodies, selectedGoalId,
   } = useCharacterStore()
 
   const [activeGearTab, setActiveGearTab] = useState('morph')
@@ -24,6 +27,7 @@ export const CharacterPage: React.FC = () => {
   const isGoal = character.mode === 'goal'
   const activeMorph = isGoal ? character.goalBody : character.currentBody
   const updateActiveMorph = isGoal ? updateGoalBody : updateCurrentBody
+  const bodyMapping = isGoal ? (selectedGoalId ? goalBodies[selectedGoalId] : null) : measuredBody
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
@@ -65,6 +69,16 @@ export const CharacterPage: React.FC = () => {
         </div>
       </div>
 
+      <BodyTargets />
+      <Card className="p-4 text-sm text-slate-300 space-y-2">
+        <p className="font-bold text-teal-300">Dữ liệu minh họa gần đúng · {isGoal ? 'Mục tiêu đã nhập' : 'Phiếu đo hiện tại'}</p>
+        {!bodyMapping?.sourceId ? <p>Chưa có dữ liệu cho chế độ này.</p> : <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">{Object.entries(bodyMapping.normalized).map(([key, value]) => <p key={key}>{({ overallVolume: 'Thể tích', upperBodyMuscle: 'Cơ thân trên', lowerBodyMuscle: 'Cơ thân dưới', bodyFat: 'Mỡ', arms: 'Tay', legs: 'Chân', trunk: 'Thân' } as Record<string, string>)[key]}: {formatBodyValue(value)}</p>)}</div>
+          <p className="text-xs text-slate-400">Thang minh họa 0–1. Thiếu: {bodyMapping.missing.length ? bodyMapping.missing.map(key => mappingInputLabels[key]).join(', ') : 'không'}; vùng thiếu dùng giá trị trung tính.</p>
+        </>}
+        <p className="text-xs text-slate-500">Đây là tham số chuẩn bị cho avatar, không phải tái dựng giải phẫu. Mô nạc phân đoạn không phải kích thước cơ chính xác. Avatar bên dưới dùng tùy chỉnh thủ công độc lập trong giai đoạn này.</p>
+      </Card>
+
       {/* Main Grid: 3D Viewport (7 cols) + Tuning & Equipment (5 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* 3D Viewport (7 Cols) */}
@@ -85,7 +99,7 @@ export const CharacterPage: React.FC = () => {
             <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">CƠ XƯƠNG (SMM)</span>
               <div className="text-lg font-black text-teal-400 mt-1">
-                {isGoal ? 'Tinh chỉnh thủ công' : latestMeasurement ? `${latestMeasurement.smmKg} kg` : 'Chưa đo'}
+                {isGoal ? 'Xem mục tiêu phía trên' : `${formatBodyValue(latestMeasurement?.smmKg)} kg`}
               </div>
               <span className="text-[10px] text-slate-500 block">
                 {isGoal ? 'Tham số minh họa' : 'Kết quả InBody'}
@@ -95,7 +109,7 @@ export const CharacterPage: React.FC = () => {
             <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">TỶ LỆ MỠ (PBF)</span>
               <div className="text-lg font-black text-amber-400 mt-1">
-                {isGoal ? 'Tinh chỉnh thủ công' : latestMeasurement ? `${latestMeasurement.pbfPercent} %` : 'Chưa đo'}
+                {isGoal ? 'Xem mục tiêu phía trên' : `${formatBodyValue(latestMeasurement?.pbfPercent)} %`}
               </div>
               <span className="text-[10px] text-slate-500 block">
                 {isGoal ? 'Tham số minh họa' : 'Mức hiện tại'}
@@ -103,9 +117,9 @@ export const CharacterPage: React.FC = () => {
             </Card>
 
             <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">CÂN NẶNG DỰ PHÓNG</span>
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">CÂN NẶNG</span>
               <div className="text-lg font-black text-white mt-1">
-                {isGoal ? 'Tinh chỉnh thủ công' : latestMeasurement ? `${latestMeasurement.weightKg} kg` : 'Chưa đo'}
+                {isGoal ? 'Xem mục tiêu phía trên' : `${formatBodyValue(latestMeasurement?.weightKg)} kg`}
               </div>
               <span className="text-[10px] text-slate-500 block">
                 {isGoal ? 'Tham số minh họa' : 'Thực tế'}
@@ -142,7 +156,7 @@ export const CharacterPage: React.FC = () => {
                   Hướng Dẫn Tinh Chỉnh Avatar
                 </div>
                 <p>
-                  Kéo các thanh trượt để thử nghiệm tỷ lệ cơ bắp (Hypertrophy) và lớp mỡ (Fat Layer). Chế độ Mục Tiêu cho phép bạn hình dung thể hình ước tính khi đạt các mốc InBody tiếp theo.
+                  Kéo các thanh trượt để tùy chỉnh hình minh họa. Tùy chỉnh hiện tại và mục tiêu được lưu riêng, không thay đổi số đo và không dự đoán hình thể khi đạt mục tiêu.
                 </p>
               </Card>
             </TabsContent>

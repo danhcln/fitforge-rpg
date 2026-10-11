@@ -1,9 +1,8 @@
+import { BodyHistoryCharts } from '@/components/BodyComposition'
 import { WorkoutHistory } from '@/components/WorkoutHistory'
 import React from 'react'
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -11,12 +10,11 @@ import {
   BarChart,
   Bar,
 } from 'recharts'
-import { useInBodyStore, useWorkoutStore, useQuestStore } from '@/stores'
+import { useWorkoutStore, useQuestStore } from '@/stores'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Progress } from '@/components/ui/Progress'
 import {
-  TrendingUp,
   Award,
   Shield,
   Star,
@@ -25,17 +23,8 @@ import {
 } from 'lucide-react'
 
 export const HistoryAchievementsPage: React.FC = () => {
-  const { measurements } = useInBodyStore()
   const { sessions } = useWorkoutStore()
   const { achievements } = useQuestStore()
-
-  // Format InBody historical chart data
-  const inBodyChartData = measurements.map((m) => ({
-    date: m.date.slice(5),
-    weight: m.weightKg,
-    smm: m.smmKg,
-    pbf: m.pbfPercent,
-  }))
 
   // Format workout volume data
   const volumeChartData = sessions.slice(0, 7).reverse().map((s) => ({
@@ -72,76 +61,7 @@ export const HistoryAchievementsPage: React.FC = () => {
       </div>
 
       {/* TRENDS: Recharts Graphs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* SMM & Weight Trend Chart */}
-        <Card className="border-slate-800 bg-slate-900/80">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-white">
-                <TrendingUp className="w-4 h-4 text-teal-400" />
-                Tiến Trình Cơ Xương (SMM) & Cân Nặng (kg)
-              </CardTitle>
-              <div className="flex items-center gap-3 text-[11px]">
-                <span className="flex items-center gap-1 text-teal-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-teal-400" /> Cơ SMM
-                </span>
-                <span className="flex items-center gap-1 text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400" /> Cân Nặng
-                </span>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="pt-2">{!sessions.length && !measurements.length && <p className="text-xs text-slate-400">Chưa có dữ liệu thực tế để vẽ biểu đồ.</p>}
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={inBodyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorSmm" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.0} />
-                    </linearGradient>
-                    <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#64748b" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#64748b" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
-                  <YAxis stroke="#64748b" fontSize={11} domain={['dataMin - 2', 'dataMax + 2']} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0f172a',
-                      borderColor: '#334155',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="smm"
-                    name="Cơ Xương (SMM)"
-                    stroke="#14b8a6"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorSmm)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="weight"
-                    name="Cân Nặng"
-                    stroke="#94a3b8"
-                    strokeWidth={1.5}
-                    strokeDasharray="4 4"
-                    fillOpacity={1}
-                    fill="url(#colorWeight)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 gap-6">
         {/* Workout Volume per Session */}
         <Card className="border-slate-800 bg-slate-900/80">
           <CardHeader className="pb-2">
@@ -156,7 +76,7 @@ export const HistoryAchievementsPage: React.FC = () => {
             </div>
           </CardHeader>
 
-          <CardContent className="pt-2">{!sessions.length && !measurements.length && <p className="text-xs text-slate-400">Chưa có dữ liệu thực tế để vẽ biểu đồ.</p>}
+          <CardContent className="pt-2">{!sessions.length && <p className="text-xs text-slate-400">Chưa có dữ liệu thực tế để vẽ biểu đồ.</p>}
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={volumeChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -179,6 +99,7 @@ export const HistoryAchievementsPage: React.FC = () => {
         </Card>
       </div>
 
+      <BodyHistoryCharts />
       <WorkoutHistory />
 
       {/* ACHIEVEMENTS & TROPHIES GRID */}

@@ -1,6 +1,9 @@
+# Phase 3 status — 2026-10-12
+
+Completed: local InBody CRUD/history, safe v3 migration/backups, null-safe BMI/fat/fat-free calculations, independent report-interval classifications, segmental visualization, charts, current/target integration and normalized avatar data mapping. No advanced avatar morphing, OCR, cloud integration, diagnosis or physical-change prediction is enabled. Phase 4 has not started. See [PHASE_3_REPORT.md](PHASE_3_REPORT.md) and [BODY_COMPOSITION.md](BODY_COMPOSITION.md); the original roadmap below is historical where it differs from the owner's Phase 3 scope.
 # Phase 2 Status — 2026-10-11
 
-✅ Local database, safe migrations, reactive stores, validated additive backup/restore, workout CRUD/drafts/history, four PR categories, real dashboard totals and automated tests are complete. The basic Epley engine moved into Phase 2 at the project owner's request. Phase 3 has not started. See [PHASE_2_REPORT.md](PHASE_2_REPORT.md).
+✅ Local database, safe migrations, reactive stores, validated additive backup/restore, workout CRUD/drafts/history, four PR categories, real dashboard totals and automated tests are complete. The basic Epley engine moved into Phase 2 at the project owner's request. Phase 3 is now complete; see the status update above. See [PHASE_2_REPORT.md](PHASE_2_REPORT.md).
 
 # Lộ Trình Phát Triển Tính Năng (Feature Roadmap)
 

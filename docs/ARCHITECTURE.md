@@ -1,3 +1,6 @@
+# Phase 3 implementation update — 2026-10-12
+
+The current body-engine contract is documented in [BODY_COMPOSITION.md](BODY_COMPOSITION.md) and [PHASE_3_REPORT.md](PHASE_3_REPORT.md). Dexie/backup version 3 is additive and supports old reports/backups. Body calculations, references and normalized current/goal mappings are live derived state; procedural avatar customization stays independent and manual. Historical scaffold examples below must not be used as medical classification or physical-change prediction rules.
 # FitForge RPG — Kiến Trúc Hệ Thống (Architecture Blueprint)
 
 ## 1. Tổng Quan Hệ Thống (System Overview)
@@ -186,32 +189,45 @@ export interface PersonalRecord {
 ### 4.3. Chỉ Số Thể Trạng InBody & Phân Đoạn Cơ (`BodyMeasurement`, `SegmentalLean`)
 ```typescript
 export interface SegmentalLean {
-  rightArmKg: number
-  rightArmPercent: number
-  leftArmKg: number
-  leftArmPercent: number
-  trunkKg: number
-  trunkPercent: number
-  rightLegKg: number
-  rightLegPercent: number
-  leftLegKg: number
-  leftLegPercent: number
+  rightArmKg?: number | null
+  rightArmPercent?: number | null
+  leftArmKg?: number | null
+  leftArmPercent?: number | null
+  trunkKg?: number | null
+  trunkPercent?: number | null
+  rightLegKg?: number | null
+  rightLegPercent?: number | null
+  leftLegKg?: number | null
+  leftLegPercent?: number | null
 }
-
+export type BodyMetric = 'weightKg' | 'smmKg' | 'pbfPercent' | 'bodyFatMassKg' | 'bmi'
+export interface DeviceReference {
+  min: number
+  max: number
+  unit: 'kg' | '%' | 'kg/m²'
+  label: string
+  scope: 'individual' | 'adult'
+}
 export interface BodyMeasurement {
   id: string
   date: string
-  weightKg: number
-  smmKg: number          // Skeletal Muscle Mass (Khối lượng cơ xương)
-  pbfPercent: number     // Percent Body Fat (Tỷ lệ mỡ)
-  bmi: number
-  bodyFatMassKg: number
-  bmrKcal: number
-  visceralFatLevel: number
-  bodyWaterKg: number
-  boneMassKg: number
-  inBodyScore?: number
-  segmentalLean: SegmentalLean
+  /** Version 3 records unavailable core inputs as null. Legacy rows may omit height. */
+  measurementVersion?: 3
+  heightCm?: number | null
+  weightKg?: number | null
+  smmKg?: number | null
+  pbfPercent?: number | null
+  bodyFatMassKg?: number | null
+  /** BMI transcribed from the device, never overwritten by derived BMI. */
+  bmi?: number | null
+  bmrKcal?: number | null
+  visceralFatLevel?: number | null
+  bodyWaterKg?: number | null
+  boneMassKg?: number | null
+  inBodyScore?: number | null
+  ageYears?: number | null
+  segmentalLean?: SegmentalLean
+  references?: Partial<Record<BodyMetric, DeviceReference>>
   notes?: string
 }
 ```
@@ -282,14 +298,22 @@ PRs are rebuilt from real completed sessions, including after edits/deletion. Re
 
 Dexie is the source of truth. `DatabaseSync` reads a consistent live snapshot through `dexie-react-hooks` into the existing Zustand stores. User/workout/InBody/quest stores start with empty or neutral state, not mock progress. Workout drafts recover once at app load; subsequent live snapshots never replace in-flight form edits. Writes are queued, save failures are displayed, and the tracker warns on navigation while a draft write is pending. Avatar controls remain procedural/manual and persist their settings; automatic InBody morphing is deferred.
 
-`validation.ts` checks nested entity shapes, supported enum values, dates, finite/nonnegative values, bounds, set IDs and references. Runtime validation is necessary even with strict TypeScript because backup files are untrusted. Measurement forms require actual values for all stored fields rather than inventing missing water/bone/segment values. Goal and profile edits persist through validated services. RPG quests/achievements are empty on fresh installations; further mechanics are deferred.
+`validation.ts` checks nested entity shapes, supported enum values, dates, finite/nonnegative values, bounds, set IDs and references. Runtime validation is necessary even with strict TypeScript because backup files are untrusted. Phase 3 measurement forms support unavailable readings as null; dedicated body validation preserves reported values without inventing height or missing water/bone/segment readings. Goal and profile edits persist through validated services. RPG quests/achievements are empty on fresh installations; further mechanics are deferred.
 
 ## 8. Backup Contract
 
-`exportFullBackup()` returns a consistent version-2 JSON snapshot of all logical entity tables (the user array keeps its legacy `user` key) plus audit entries. Individual set rows and cached derived PRs are reconstructed from embedded workout data. `importBackup(unknown)` accepts version 1 or 2, validates every table and nested record before any write, rejects duplicate IDs/missing exercise or character/profile references, and merges all new IDs in one transaction. Existing IDs always win, including profile/avatar conflicts. This is an additive restore, not replacement or conflict resolution; profile changes with an existing ID must be made through the profile editor. No imported workout awards XP a second time. Legacy PR rows are preserved; derived PR rows are rebuilt. Demo backups cannot overwrite real records. The destructive demo-reset API/UI has been removed. The file picker rejects files above 20 MB.
+`exportFullBackup()` returns a consistent version-3 JSON snapshot of all logical entity tables (the user array keeps its legacy `user` key) plus audit entries. Individual set rows and cached derived PRs are reconstructed from embedded workout data. `importBackup(unknown)` accepts version 1, 2 or 3, validates every table and nested record before any write, rejects duplicate IDs/missing exercise or character/profile references, and merges all new IDs in one transaction. Existing IDs always win, including profile/avatar conflicts. This is an additive restore, not replacement or conflict resolution; profile changes with an existing ID must be made through the profile editor. No imported workout awards XP a second time. Legacy PR rows are preserved; derived PR rows are rebuilt. Demo backups cannot overwrite real records. The destructive demo-reset API/UI has been removed. The file picker rejects files above 20 MB.
 
 ## 9. Verification
 
 Vitest uses `fake-indexeddb` with isolated test databases. Tests cover completed-set volume, Epley bounds, independent PR detection, empty/invalid inputs, draft/workout persistence after reconnect, queued store operations, migration preservation, validated backup round trips, conflicts, demo separation, transaction rollback, edits/deletion and XP idempotency. Run `npm.cmd run lint`, `npm.cmd run build`, and `npm.cmd run test`.
 
 Use a consistent browser profile and origin (scheme/host/port) when running locally: IndexedDB is scoped to that origin. Export a backup before changing origins or browser profiles. This phase does not add a service worker; Vite assets still need to be served locally.
+
+## 10. Phase 3 Body Composition Integration
+
+`services/bodyComposition/calculations.ts` provides null-safe formulas, provenance, differences and metric-specific classification; `validation.ts` validates report shapes, units and reference intervals. `BodyCompositionToAvatar.ts` provides the documented clamped mapping interface for Phase 4. No renderer or workout/PR calculation module is replaced.
+
+`DatabaseSync` reads measurements and active real goals in its consistent transaction snapshot, updates `useInBodyStore`, and populates `useCharacterStore.measuredBody`/`goalBodies` separately from persisted manual `character.currentBody`/`goalBody`. Real reports are sorted by date then ID; same-day ties are deterministic. The selected body goal is session state. Shared `BodyOverview`, `BodyHistoryCharts`, `BodyTargets` and `TargetComparison` components connect Dashboard, Body Analysis, History, Goals and Character without hardcoded progress. Body Analysis adds validated create/edit forms, reference entry, segmental visual display, chronological table and a confirmation dialog before deletion.
+
+Database version 3 adds the body `source` index without changing stored measurements. Measurement writes and deletion include audit entries atomically. Backup version 3 accepts v1/v2/v3 and retains additive conflict behavior. See the body contract for explicit unavailable fields, legacy BMI provenance, nonmedical references and arbitrary artistic avatar scales.

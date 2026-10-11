@@ -1,3 +1,6 @@
+# Phase 3 implementation update — 2026-10-12
+
+Body measurement CRUD, nullable inputs, calculation/provenance, reference classifications, charts, comparisons, target integration and the bounded `BodyCompositionToAvatar` v1 interface are complete. See [BODY_COMPOSITION.md](BODY_COMPOSITION.md) and [PHASE_3_REPORT.md](PHASE_3_REPORT.md). Schema/backup version is 3; v1/v2 backups and original readings remain supported. Advanced measured avatar morphing is deferred to Phase 4; manual customization is independent. The historical fixed SMM/PBF morph example below is superseded by the documented artistic mapping and must not be treated as a universal body classification or prediction.
 # Phase 2 Implementation Update — 2026-10-11
 
 Phase 2 is implemented. See [PHASE_2_REPORT.md](PHASE_2_REPORT.md) and sections 6–9 of [ARCHITECTURE.md](ARCHITECTURE.md) for the current contracts. The scaffold handoff below is historical; mock seeding and destructive reset are no longer supported. InBody morphing, advanced analytics, dynamic RPG mechanics, rest timer and PWA remain future work.

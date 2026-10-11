@@ -4,9 +4,13 @@ import { db } from '@/services/db'
 import type { Goal } from '@/types'
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Modal, Badge } from '@/components/ui'
 import { localDate } from '@/services/workout/calculations'
+import { useInBodyStore } from '@/stores'
+import { TargetComparison } from '@/components/BodyComposition'
+import { formatBodyValue } from '@/services/bodyComposition/presentation'
 const labels = { targetWeightKg: 'Cân nặng (kg)', targetSmmKg: 'Cơ xương (kg)', targetPbfPercent: 'Tỷ lệ mỡ (%)',
   targetCaloDaily: 'Calo mỗi ngày', targetProteinDailyGrams: 'Protein (g)', targetCarbDailyGrams: 'Carb (g)', targetFatDailyGrams: 'Chất béo (g)', targetWeeklyWorkouts: 'Buổi tập mỗi tuần' }
 export function GoalsPlanningPage() {
+  const { latestMeasurement } = useInBodyStore()
   const goals = useLiveQuery(() => db.goals.toArray(), [])?.filter(g => g.source !== 'demo') ?? []
   const [editing, setEditing] = useState<Goal | null>(null)
   const [values, setValues] = useState<Record<string, string>>({})
@@ -22,8 +26,9 @@ export function GoalsPlanningPage() {
     <div className="flex justify-between flex-wrap gap-4 pb-2 border-b border-slate-800"><div><h1 className="text-2xl sm:text-3xl font-extrabold text-white">Mục Tiêu & Kế Hoạch (Questline & Blueprint)</h1><p className="text-sm text-slate-400 mt-1">Lưu mục tiêu thể hình và dinh dưỡng cá nhân.</p></div><Button onClick={() => open()}>Thêm mục tiêu</Button></div>
     {!goals.length && <Card className="p-6 text-slate-400">Chưa có mục tiêu cá nhân.</Card>}
     {goals.map(goal => <Card key={goal.id}><CardHeader className="flex justify-between"><CardTitle>{goal.title}</CardTitle><Badge>{goal.deadline}</Badge></CardHeader><CardContent>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">{Object.entries(labels).map(([key, label]) => <div key={key} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800"><p className="text-xs text-slate-400">{label}</p><p className="text-xl text-teal-400 font-bold">{goal[key as keyof typeof labels]}</p></div>)}</div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">{Object.entries(labels).map(([key, label]) => <div key={key} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800"><p className="text-xs text-slate-400">{label}</p><p className="text-xl text-teal-400 font-bold">{goal[key as keyof typeof labels] > 0 ? formatBodyValue(goal[key as keyof typeof labels]) : 'Chưa đặt'}</p></div>)}</div>
       <Button variant="outline" onClick={() => open(goal)}>Chỉnh sửa mục tiêu</Button>
+      <TargetComparison goal={goal} current={latestMeasurement} />
     </CardContent></Card>)}
     <Modal isOpen={!!editing} onClose={() => { if (!busy) setEditing(null) }} title="Mục tiêu cá nhân" maxWidth="xl"><div className="space-y-3 max-h-[65vh] overflow-y-auto">
       {error && <p role="alert" className="text-rose-400">{error}</p>}
@@ -32,7 +37,7 @@ export function GoalsPlanningPage() {
         <option value="habit">Thói quen</option><option value="strength">Sức mạnh</option><option value="muscle_gain">Tăng cơ</option><option value="fat_loss">Giảm mỡ</option>
       </select>
       <div className="grid grid-cols-2 gap-3">{Object.entries(labels).map(([key, label]) => <Input key={key} label={label} type="number" min="0" step="any" value={values[key] ?? ''} onChange={e => setValues({ ...values, [key]: e.target.value })} />)}</div>
-      <Input label="Hạn mục tiêu" type="date" value={values.deadline ?? ''} onChange={e => setValues({ ...values, deadline: e.target.value })} />
+      <Input label="Hạn mục tiêu" type="date" value={values.deadline ?? ''} onInput={e => setValues({ ...values, deadline: e.currentTarget.value })} onChange={e => setValues({ ...values, deadline: e.target.value })} />
       <Button disabled={busy} onClick={async () => {
         if (!editing) return
         setBusy(true)
