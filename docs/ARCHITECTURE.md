@@ -268,31 +268,28 @@ Trên mọi khung nhìn 3D Canvas, một huy hiệu cảnh báo luôn hiển th�
 
 ---
 
-## 6. Chiến Lược Lưu Trữ Cục Bộ (Local-First Persistence Strategy)
+## 6. Phase 2 — Local Persistence (implemented 2026-10-11)
 
-### 6.1. Dexie.js Schema
-Lớp lưu trữ tại `src/services/db/db.ts` khai báo các bảng:
-- `users`: ID, level
-- `exercises`: ID, muscleGroup, equipment
-- `workoutSessions`: ID, date, splitType
-- `personalRecords`: ID, exerciseId, achievedDate
-- `bodyMeasurements`: ID, date
-- `goals`: ID, category
-- `characterStates`: ID, userId
-- `achievements`: ID, code, category, unlocked
-- `quests`: ID, frequency, isCompleted
+The database remains `FitForgeRPG_DB`. Version 1 is retained verbatim so existing installations can upgrade. Version 2 adds `workoutSets` (`id`, `sessionId`, `exerciseId`, compound session/exercise index), `auditLog`, and session status/source indexes. Sessions still embed their sets for compatibility; normalized rows are synchronized in the same transaction. Qualified normalized set IDs prevent collisions between legacy sessions. `WorkoutSession` adds optional `source`, `status`, `startedAt`, and `editOf`; old completed sessions remain readable.
 
-### 6.2. Cơ Chế Khởi Tạo & Sao Lưu
-1. **Tự động gieo dữ liệu (Auto-seeding):** Khi mở ứng dụng lần đầu, `db.seedInitialData()` kiểm tra bảng `users`. Nếu rỗng, nạp toàn bộ bộ mock data chuẩn tiếng Việt.
-2. **Xuất file sao lưu (JSON Backup):** `db.exportFullBackup()` trích xuất toàn bộ dữ liệu ra file `.json` để người dùng lưu vào ổ đĩa.
-3. **Làm mới dữ liệu mẫu (Reset Demo):** `db.resetToDemoState()` hỗ trợ môi trường thử nghiệm sạch.
+The migration never clears original tables. Only records that exactly match the original scaffold fixtures are marked `source: demo`; changed/unknown records are kept as real. Original profiles, measurements, goals, avatars and PR rows remain stored. An untouched demo profile gets a separate level-1 local profile. Exercise definitions are reference data, not progress. Initialization adds missing exercise IDs and never replaces customized exercises. No demo history, measurements, goals, achievements or quest progress are seeded into new installations.
 
----
+`saveDraft` persists valid in-progress sessions without granting XP. An edit uses a separate draft with `editOf`, preserving the original until save. `saveWorkout` validates input/references and atomically writes the session, individual sets, derived records, profile XP/level, calendar-day streak and audit entry; it removes an editing draft within that transaction. Re-saving awards only the XP difference, not the whole reward again. Deletion reverses workout XP, removes sets and rebuilds PRs/streak. XP is `round(completed volume * 0.035) + 200`. Calendar dates use the browser's local timezone; a gap of more than one day resets the active streak. Empty/uncompleted workouts cannot be finalized. Zero weight is allowed for bodyweight exercises; no artificial bodyweight load is assumed.
 
-## 7. Hệ Thống Trạng Thái (Zustand Stores)
+PRs are rebuilt from real completed sessions, including after edits/deletion. Records have `kind`, `value`, `weightKg` (for repetition records), `sessionId`, and achieved date. Four independent kinds are maximum weight, most repetitions at each weight, exercise volume in one session, and Epley estimated 1RM. Only completed sets count; warmups count. Epley is `weight * (1 + reps / 30)` for positive load and 1–10 integer repetitions. Larger repetition counts contribute to weight/repetition/volume records but do not produce an estimate. Equal records retain the first workout in deterministic chronological order.
 
-- **`useUserStore`:** Quản lý thông tin chiến binh, kinh nghiệm, tự động tăng cấp (Level Up) khi XP vượt ngưỡng, tính toán vàng và năng lượng.
-- **`useWorkoutStore`:** Quản lý danh mục bài tập, buổi tập đang diễn ra (`activeSession`), thêm hiệp tập, đánh dấu hoàn thành, tính toán Volume (kg) và trao thưởng XP.
-- **`useCharacterStore`:** Lưu trữ trạng thái 3D, chuyển đổi giữa Thể trạng hiện tại và Mục tiêu, điều chỉnh các tham số morph parameters.
-- **`useInBodyStore`:** Quản lý danh sách các phiếu đo InBody và tự động cập nhật phiếu mới nhất vào biểu đồ.
-- **`useQuestStore`:** Xử lý cơ chế nhận thưởng (Claim reward) cho nhiệm vụ hàng ngày/tuần và mở khóa huy hiệu.
+## 7. Reactive State and Validation
+
+Dexie is the source of truth. `DatabaseSync` reads a consistent live snapshot through `dexie-react-hooks` into the existing Zustand stores. User/workout/InBody/quest stores start with empty or neutral state, not mock progress. Workout drafts recover once at app load; subsequent live snapshots never replace in-flight form edits. Writes are queued, save failures are displayed, and the tracker warns on navigation while a draft write is pending. Avatar controls remain procedural/manual and persist their settings; automatic InBody morphing is deferred.
+
+`validation.ts` checks nested entity shapes, supported enum values, dates, finite/nonnegative values, bounds, set IDs and references. Runtime validation is necessary even with strict TypeScript because backup files are untrusted. Measurement forms require actual values for all stored fields rather than inventing missing water/bone/segment values. Goal and profile edits persist through validated services. RPG quests/achievements are empty on fresh installations; further mechanics are deferred.
+
+## 8. Backup Contract
+
+`exportFullBackup()` returns a consistent version-2 JSON snapshot of all logical entity tables (the user array keeps its legacy `user` key) plus audit entries. Individual set rows and cached derived PRs are reconstructed from embedded workout data. `importBackup(unknown)` accepts version 1 or 2, validates every table and nested record before any write, rejects duplicate IDs/missing exercise or character/profile references, and merges all new IDs in one transaction. Existing IDs always win, including profile/avatar conflicts. This is an additive restore, not replacement or conflict resolution; profile changes with an existing ID must be made through the profile editor. No imported workout awards XP a second time. Legacy PR rows are preserved; derived PR rows are rebuilt. Demo backups cannot overwrite real records. The destructive demo-reset API/UI has been removed. The file picker rejects files above 20 MB.
+
+## 9. Verification
+
+Vitest uses `fake-indexeddb` with isolated test databases. Tests cover completed-set volume, Epley bounds, independent PR detection, empty/invalid inputs, draft/workout persistence after reconnect, queued store operations, migration preservation, validated backup round trips, conflicts, demo separation, transaction rollback, edits/deletion and XP idempotency. Run `npm.cmd run lint`, `npm.cmd run build`, and `npm.cmd run test`.
+
+Use a consistent browser profile and origin (scheme/host/port) when running locally: IndexedDB is scoped to that origin. Export a backup before changing origins or browser profiles. This phase does not add a service worker; Vite assets still need to be served locally.

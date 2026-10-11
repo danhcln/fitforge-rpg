@@ -53,7 +53,7 @@ export const AvatarCanvas: React.FC<AvatarCanvasProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Hiện Tại (InBody)
+                Hiện Tại (Thủ công)
               </button>
               <button
                 type="button"

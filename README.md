@@ -1,3 +1,9 @@
+# Phase 2 — Core Workout Tracking
+
+Local-first workout tracking is implemented. See [the Phase 2 report](docs/PHASE_2_REPORT.md) for audit results, migration/restore rules, tests and deferred work. Existing navigation, dark RPG components and the procedural 3D avatar are preserved. Avatar parameters remain manual in this phase.
+
+On Windows: `npm.cmd ci`, `npm.cmd run dev`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run test`. Use Node.js 24 LTS. Keep the same browser profile and origin to access your local records.
+
 # 🏋️‍♂️ FitForge RPG — Game Hóa Luyện Tập & Thể Hình 3D Cá Nhân
 
 > **Ứng dụng rèn luyện thể hình RPG cục bộ (Local-First Fitness Gamification Web App)**  
@@ -22,13 +28,13 @@
    - *Minh bạch y khoa:* Huy hiệu tuyên bố miễn trừ giải phẫu y tế chuẩn mực.
 
 2. **7 Phân Hệ Trang Nghiệp Vụ Hoàn Chỉnh:**
-   - **Tổng Quan (Dashboard):** Thống kê cân nặng, cơ xương (SMM), tỷ lệ mỡ (PBF), chuỗi ngày (Streak 🔥), xem trước nhân vật 3D, nhiệm vụ hàng ngày/tuần nhận thưởng XP và Vàng.
+   - **Tổng Quan (Dashboard):** Thống kê cân nặng, cơ xương (SMM), tỷ lệ mỡ (PBF), chuỗi ngày (Streak 🔥), xem trước nhân vật 3D, tổng volume, số buổi tập, hiệp hoàn thành và XP từ buổi tập.
    - **Nhân Vật 3D (Character):** Khung nhìn 3D mở rộng, bộ điều khiển morph targets, trang bị hỗ trợ (Đai lưng, Băng quấn cổ tay, Băng gối, Hào quang) và danh sách skin.
    - **Luyện Tập (Workout):** Thư viện bài tập phân nhóm cơ (Ngực, Lưng, Chân, Vai, Tay, Bụng), giao diện ghi nhận hiệp tập đang diễn ra (Sets, Reps, Weight kg), tính tổng volume và tích lũy EXP.
    - **Chỉ Số InBody (Body Analysis):** Phân tích BMI, SMM, PBF, BMR, Mỡ nội tạng, phân tích khối lượng cơ phân đoạn (Tay T/P, Thân mình, Chân T/P), biểu mẫu nhập phiếu InBody mới.
-   - **Mục Tiêu & Kế Hoạch (Goals & Planning):** Đặt mục tiêu tăng cơ giảm mỡ, phân bổ Macros dinh dưỡng hàng ngày (Calo, Protein, Carb, Fat, Nước), lịch chia nhóm cơ 5 ngày/tuần (5-Day Split).
-   - **Lịch Sử & Danh Hiệu (History & Achievements):** Biểu đồ xu hướng tiến trình thể hình (Recharts), đền kỷ lục cá nhân (PR Hall of Fame: Bench 105kg, Squat 140kg, Deadlift 175kg), bảng vinh danh huy hiệu RPG 4 cấp độ.
-   - **Cài Đặt & Dữ Liệu (Settings):** Quản lý trạng thái IndexedDB, xuất file sao lưu JSON (Export Backup), khôi phục dữ liệu mẫu (Reset Demo Seed).
+   - **Mục Tiêu & Kế Hoạch (Goals & Planning):** Đặt mục tiêu tăng cơ giảm mỡ, phân bổ Macros dinh dưỡng hàng ngày (Calo, Protein, Carb, Fat, Nước), mục tiêu số buổi tập mỗi tuần.
+   - **Lịch Sử & Danh Hiệu (History & Achievements):** Biểu đồ xu hướng tiến trình thể hình (Recharts), đền kỷ lục cá nhân (PR từ buổi tập thực tế: trọng lượng, số lần tại trọng lượng, volume, 1RM ước tính), bảng vinh danh huy hiệu RPG 4 cấp độ.
+   - **Cài Đặt & Dữ Liệu (Settings):** Quản lý trạng thái IndexedDB, xuất file sao lưu JSON (Export Backup), nhập JSON có kiểm tra và giữ nguyên dữ liệu khi trùng ID.
 
 3. **Triết Lý Thiết Kế Cục Bộ (Local-First & Privacy):**
    - Không máy chủ backend, không xác thực đám mây, không API thu phí.
@@ -56,7 +62,7 @@ Yêu cầu môi trường: **Node.js 20+** hoặc **Node.js 24+** và **npm**.
 
 ```bash
 # 1. Sao chép kho lưu trữ
-git clone https://github.com/danhcln/fitforge-rpg.git
+git clone https://github.com/hgb1625/fitforge-rpg.git
 cd fitforge-rpg
 
 # 2. Cài đặt các gói phụ thuộc

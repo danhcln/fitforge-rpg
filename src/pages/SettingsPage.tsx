@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { db } from '@/services/db'
+import { useUserStore } from '@/stores'
+import { Input } from '@/components/ui'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -10,13 +12,14 @@ import {
   RotateCcw,
   ShieldCheck,
   HardDrive,
-  Cpu,
   Check,
 } from 'lucide-react'
 
 export const SettingsPage: React.FC = () => {
   const [exporting, setExporting] = useState(false)
-  const [resetting, setResetting] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+  const { user, updateProfile } = useUserStore()
+  const [profileName, setProfileName] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   const handleExportData = async () => {
@@ -37,26 +40,6 @@ export const SettingsPage: React.FC = () => {
       setMessage('❌ Đã xảy ra lỗi khi trích xuất dữ liệu.')
     } finally {
       setExporting(false)
-    }
-  }
-
-  const handleResetData = async () => {
-    const confirmReset = window.confirm(
-      'Bạn có chắc chắn muốn khôi phục dữ liệu về trạng thái mẫu ban đầu? Toàn bộ thay đổi chưa lưu sẽ được làm mới.'
-    )
-    if (!confirmReset) return
-
-    try {
-      setResetting(true)
-      await db.resetToDemoState()
-      setMessage('✅ Đã khôi phục dữ liệu mẫu thành công! Đang tải lại ứng dụng...')
-      setTimeout(() => {
-        window.location.reload()
-      }, 1200)
-    } catch {
-      setMessage('❌ Đã xảy ra lỗi khi làm mới dữ liệu.')
-    } finally {
-      setResetting(false)
     }
   }
 
@@ -112,18 +95,18 @@ export const SettingsPage: React.FC = () => {
             <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">TÊN CƠ SỞ DỮ LIỆU</span>
               <strong className="text-white mt-0.5 block font-mono">FitForgeRPG_DB</strong>
-              <span className="text-[10px] text-slate-400">Phiên bản schema 1</span>
+              <span className="text-[10px] text-slate-400">Phiên bản schema 2</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">ĐỒNG BỘ ĐÁM MÂY</span>
               <strong className="text-emerald-400 mt-0.5 block">Tắt (Offline-Only)</strong>
-              <span className="text-[10px] text-slate-400">Bảo mật tuyệt đối</span>
+              <span className="text-[10px] text-slate-400">Dữ liệu trên thiết bị</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">KHÔNG GIAN LƯU TRỮ</span>
-              <strong className="text-white mt-0.5 block">&lt; 5 MB</strong>
+              <strong className="text-white mt-0.5 block">Tùy dữ liệu</strong>
               <span className="text-[10px] text-slate-400">Tối ưu dung lượng</span>
             </div>
           </div>
@@ -138,7 +121,7 @@ export const SettingsPage: React.FC = () => {
             Sao Lưu, Xuất Khẩu & Khôi Phục Dữ Liệu
           </CardTitle>
           <p className="text-xs text-slate-400">
-            Dễ dàng trích xuất file JSON lưu trữ về máy tính cá nhân hoặc khôi phục dữ liệu mẫu kiểm thử
+            Sao lưu toàn bộ dữ liệu. Khôi phục chỉ thêm ID mới, giữ nguyên bản ghi hiện có khi trùng ID.
           </p>
         </CardHeader>
 
@@ -172,22 +155,24 @@ export const SettingsPage: React.FC = () => {
               <div>
                 <h4 className="font-bold text-xs text-rose-300 flex items-center gap-1.5">
                   <RotateCcw className="w-4 h-4 text-rose-400" />
-                  Khôi Phục Dữ Liệu Mẫu (Reset Demo Seed)
+                  Nhập File Sao Lưu JSON
                 </h4>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Khôi phục các bản ghi mẫu ban đầu (UserProfile Lv14, 4 kỳ đo InBody, bài tập chuẩn và lịch sử).
+                  File được kiểm tra cấu trúc và tham chiếu trước khi nhập trong một giao dịch. Dữ liệu mẫu được giữ riêng khỏi tiến trình thực tế.
                 </p>
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-rose-500/40 text-rose-300 hover:bg-rose-950/30 w-full sm:w-auto self-start"
-                onClick={handleResetData}
-                disabled={resetting}
-              >
-                {resetting ? 'Đang làm mới...' : 'Khôi Phục Trạng Thái Mẫu'}
-              </Button>
+              <input aria-label="Nhập sao lưu JSON" type="file" accept=".json,application/json" disabled={restoring} className="text-xs text-slate-300" onChange={async e => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setRestoring(true)
+                try {
+                  if (file.size > 20 * 1024 * 1024) throw new Error('File vượt quá 20 MB.')
+                  const count = await db.importBackup(JSON.parse(await file.text()) as unknown)
+                  setMessage(`Đã nhập ${count} bản ghi mới. Bản ghi trùng ID được giữ nguyên.`)
+                } catch (err) { setMessage(`Không thể khôi phục: ${String(err)}`) }
+                finally { setRestoring(false); e.target.value = '' }
+              }} />
             </div>
           </div>
         </CardContent>
@@ -235,16 +220,10 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Developer Handoff Card */}
-      <div className="p-4 rounded-2xl bg-teal-950/20 border border-teal-500/30 text-xs text-slate-300 space-y-1.5">
-        <div className="flex items-center gap-2 font-bold text-teal-300">
-          <Cpu className="w-4 h-4 text-teal-400" />
-          Tài Liệu Bàn Giao Kỹ Thuật (OpenAI Codex Handoff)
-        </div>
-        <p className="text-[11px] text-slate-400">
-          Kiến trúc frontend, schema cơ sở dữ liệu Dexie và điểm kết nối state đã được hoàn thiện. Vui lòng tham khảo các tài liệu hướng dẫn chuyên sâu tại thư mục <code className="text-teal-300 bg-slate-950 px-1.5 py-0.5 rounded">docs/ARCHITECTURE.md</code> và <code className="text-teal-300 bg-slate-950 px-1.5 py-0.5 rounded">docs/HANDOFF_TO_CODEX.md</code>.
-        </p>
-      </div>
+      <Card><CardHeader><CardTitle>Hồ sơ cá nhân</CardTitle></CardHeader><CardContent className="space-y-3">
+        <Input label="Tên chiến binh" value={profileName ?? user.name} onChange={e => setProfileName(e.target.value)} />
+        <Button onClick={async () => { try { await updateProfile({ name: (profileName ?? user.name).trim() }); setProfileName(null); setMessage('Đã lưu hồ sơ.') } catch (err) { setMessage(String(err)) } }}>Lưu hồ sơ</Button>
+      </CardContent></Card>
     </div>
   )
 }

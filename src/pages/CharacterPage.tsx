@@ -16,6 +16,7 @@ export const CharacterPage: React.FC = () => {
     updateGoalBody,
     toggleAura,
     resetToDefault,
+    error,
   } = useCharacterStore()
 
   const [activeGearTab, setActiveGearTab] = useState('morph')
@@ -26,6 +27,7 @@ export const CharacterPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
+      {error && <p role="alert" className="text-rose-400">{error}</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
@@ -38,7 +40,7 @@ export const CharacterPage: React.FC = () => {
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Không gian thị giác hóa 3D phản ánh thể trạng thực tế và mục tiêu hình thể tương lai của bạn.
+            Tinh chỉnh hình thể minh họa 3D thủ công. Phiếu InBody chưa tự động thay đổi avatar.
           </p>
         </div>
 
@@ -83,30 +85,30 @@ export const CharacterPage: React.FC = () => {
             <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">CƠ XƯƠNG (SMM)</span>
               <div className="text-lg font-black text-teal-400 mt-1">
-                {isGoal ? '36.5 kg' : `${latestMeasurement.smmKg} kg`}
+                {isGoal ? 'Tinh chỉnh thủ công' : latestMeasurement ? `${latestMeasurement.smmKg} kg` : 'Chưa đo'}
               </div>
               <span className="text-[10px] text-slate-500 block">
-                {isGoal ? 'Mục tiêu (+1.6kg)' : 'Kết quả InBody'}
+                {isGoal ? 'Tham số minh họa' : 'Kết quả InBody'}
               </span>
             </Card>
 
             <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">TỶ LỆ MỠ (PBF)</span>
               <div className="text-lg font-black text-amber-400 mt-1">
-                {isGoal ? '11.0 %' : `${latestMeasurement.pbfPercent} %`}
+                {isGoal ? 'Tinh chỉnh thủ công' : latestMeasurement ? `${latestMeasurement.pbfPercent} %` : 'Chưa đo'}
               </div>
               <span className="text-[10px] text-slate-500 block">
-                {isGoal ? 'Mục tiêu (-2.6%)' : 'Mức hiện tại'}
+                {isGoal ? 'Tham số minh họa' : 'Mức hiện tại'}
               </span>
             </Card>
 
             <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">CÂN NẶNG DỰ PHÓNG</span>
               <div className="text-lg font-black text-white mt-1">
-                {isGoal ? '74.0 kg' : `${latestMeasurement.weightKg} kg`}
+                {isGoal ? 'Tinh chỉnh thủ công' : latestMeasurement ? `${latestMeasurement.weightKg} kg` : 'Chưa đo'}
               </div>
               <span className="text-[10px] text-slate-500 block">
-                {isGoal ? 'Lean Bulk Target' : 'Thực tế'}
+                {isGoal ? 'Tham số minh họa' : 'Thực tế'}
               </span>
             </Card>
           </div>
@@ -178,7 +180,7 @@ export const CharacterPage: React.FC = () => {
                           className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
                           style={{ backgroundColor: character.equippedGear.auraColor || '#14b8a6' }}
                         />
-                        <strong className="text-teal-300">Teal Titan</strong>
+                        <strong className="text-teal-300">{character.equippedGear.auraColor || '#14b8a6'}</strong>
                       </div>
                     </div>
                   </div>

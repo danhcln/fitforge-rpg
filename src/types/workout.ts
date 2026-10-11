@@ -31,6 +31,10 @@ export interface SessionExerciseItem {
 }
 
 export interface WorkoutSession {
+  source?: 'real' | 'demo'
+  status?: 'draft' | 'completed'
+  startedAt?: number
+  editOf?: string
   id: string
   date: string
   name: string
@@ -43,6 +47,11 @@ export interface WorkoutSession {
 }
 
 export interface PersonalRecord {
+  source?: 'real' | 'demo'
+  kind?: 'weight' | 'reps' | 'volume' | 'estimated1RM'
+  value?: number
+  weightKg?: number
+  sessionId?: string
   id: string
   exerciseId: string
   exerciseName: string

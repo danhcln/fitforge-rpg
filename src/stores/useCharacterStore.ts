@@ -1,53 +1,30 @@
 import { create } from 'zustand'
 import type { CharacterState, CharacterMode, BodyMorphParameters } from '@/types'
-import { mockCharacterState } from '@/mock'
-
+import { defaultCharacter } from '@/services/db/defaults'
+import { db } from '@/services/db'
 interface CharacterStoreState {
   character: CharacterState
+  error: string | null
+  pendingWrites: number
   setMode: (mode: CharacterMode) => void
   updateCurrentBody: (params: Partial<BodyMorphParameters>) => void
   updateGoalBody: (params: Partial<BodyMorphParameters>) => void
   toggleAura: () => void
   resetToDefault: () => void
 }
-
-export const useCharacterStore = create<CharacterStoreState>((set) => ({
-  character: mockCharacterState,
-
-  setMode: (mode: CharacterMode) => {
-    set((state) => ({
-      character: { ...state.character, mode },
-    }))
-  },
-
-  updateCurrentBody: (params: Partial<BodyMorphParameters>) => {
-    set((state) => ({
-      character: {
-        ...state.character,
-        currentBody: { ...state.character.currentBody, ...params },
-      },
-    }))
-  },
-
-  updateGoalBody: (params: Partial<BodyMorphParameters>) => {
-    set((state) => ({
-      character: {
-        ...state.character,
-        goalBody: { ...state.character.goalBody, ...params },
-      },
-    }))
-  },
-
-  toggleAura: () => {
-    set((state) => ({
-      character: {
-        ...state.character,
-        auraUnlocked: !state.character.auraUnlocked,
-      },
-    }))
-  },
-
-  resetToDefault: () => {
-    set({ character: mockCharacterState })
-  },
-}))
+let writes = Promise.resolve()
+export const useCharacterStore = create<CharacterStoreState>((set, get) => {
+  const update = (character: CharacterState) => {
+    set(state => ({ character, error: null, pendingWrites: state.pendingWrites + 1 }))
+    writes = writes.then(() => db.putEntity('characterStates', character)).catch(error => set({ error: String(error) }))
+      .finally(() => set(state => ({ pendingWrites: state.pendingWrites - 1 })))
+  }
+  return {
+    character: defaultCharacter(), error: null, pendingWrites: 0,
+    setMode: mode => update({ ...get().character, mode }),
+    updateCurrentBody: params => update({ ...get().character, currentBody: { ...get().character.currentBody, ...params } }),
+    updateGoalBody: params => update({ ...get().character, goalBody: { ...get().character.goalBody, ...params } }),
+    toggleAura: () => update({ ...get().character, auraUnlocked: !get().character.auraUnlocked }),
+    resetToDefault: () => update({ ...defaultCharacter(get().character.userId), id: get().character.id }),
+  }
+})

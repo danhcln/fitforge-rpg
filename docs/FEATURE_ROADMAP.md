@@ -1,7 +1,11 @@
+# Phase 2 Status — 2026-10-11
+
+✅ Local database, safe migrations, reactive stores, validated additive backup/restore, workout CRUD/drafts/history, four PR categories, real dashboard totals and automated tests are complete. The basic Epley engine moved into Phase 2 at the project owner's request. Phase 3 has not started. See [PHASE_2_REPORT.md](PHASE_2_REPORT.md).
+
 # Lộ Trình Phát Triển Tính Năng (Feature Roadmap)
 
 Dự án: **FitForge RPG**  
-Phiên bản hiện tại: **0.1.0-scaffold**
+Phiên bản hiện tại: **0.2.0-core-workout**
 
 ---
 

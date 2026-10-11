@@ -1,3 +1,4 @@
+import { WorkoutHistory } from '@/components/WorkoutHistory'
 import React from 'react'
 import {
   ResponsiveContainer,
@@ -15,7 +16,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Progress } from '@/components/ui/Progress'
 import {
-  Trophy,
   TrendingUp,
   Award,
   Shield,
@@ -26,7 +26,7 @@ import {
 
 export const HistoryAchievementsPage: React.FC = () => {
   const { measurements } = useInBodyStore()
-  const { personalRecords, sessions } = useWorkoutStore()
+  const { sessions } = useWorkoutStore()
   const { achievements } = useQuestStore()
 
   // Format InBody historical chart data
@@ -92,7 +92,7 @@ export const HistoryAchievementsPage: React.FC = () => {
             </div>
           </CardHeader>
 
-          <CardContent className="pt-2">
+          <CardContent className="pt-2">{!sessions.length && !measurements.length && <p className="text-xs text-slate-400">Chưa có dữ liệu thực tế để vẽ biểu đồ.</p>}
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={inBodyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -156,7 +156,7 @@ export const HistoryAchievementsPage: React.FC = () => {
             </div>
           </CardHeader>
 
-          <CardContent className="pt-2">
+          <CardContent className="pt-2">{!sessions.length && !measurements.length && <p className="text-xs text-slate-400">Chưa có dữ liệu thực tế để vẽ biểu đồ.</p>}
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={volumeChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -179,48 +179,7 @@ export const HistoryAchievementsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* PERSONAL RECORDS (PR) HALL OF FAME */}
-      <Card className="border-slate-800 bg-slate-900/80">
-        <CardHeader className="pb-3 border-b border-slate-800">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base text-white">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              Đền Kỷ Lục Cá Nhân (PR Hall of Fame)
-            </CardTitle>
-            <span className="text-xs text-slate-400">Ước tính theo công thức Epley 1RM</span>
-          </div>
-        </CardHeader>
-
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {personalRecords.map((pr) => (
-              <div
-                key={pr.id}
-                className="p-3.5 rounded-2xl border border-slate-800 bg-slate-950/70 hover:border-amber-500/40 transition-all space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <Badge variant="gold" size="sm">
-                    PR MỚI
-                  </Badge>
-                  <span className="text-[10px] text-slate-500 font-mono">{pr.achievedDate}</span>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-bold text-white line-clamp-1">{pr.exerciseName}</h4>
-                  <div className="text-xl font-black text-amber-400 mt-1 font-mono">
-                    {pr.maxWeightKg} <span className="text-xs font-normal text-slate-400">kg × {pr.reps} reps</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-900 flex justify-between text-[11px] text-slate-400">
-                  <span>Ước tính 1RM:</span>
-                  <strong className="text-teal-400 font-mono">{pr.estimated1RM} kg</strong>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <WorkoutHistory />
 
       {/* ACHIEVEMENTS & TROPHIES GRID */}
       <Card className="border-slate-800 bg-slate-900/80">
@@ -236,7 +195,7 @@ export const HistoryAchievementsPage: React.FC = () => {
               </p>
             </div>
             <Badge variant="purple" size="sm">
-              Cấp Độ 14
+              Thành tích đã lưu
             </Badge>
           </div>
         </CardHeader>
