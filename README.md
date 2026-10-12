@@ -1,3 +1,7 @@
+# Phase 4 — Character Evolution
+
+The procedural character now follows actual measurement checkpoints or selected hypothetical goals, with smooth morphing, dated comparisons, camera controls, saved appearance presets and independent manual previews. XP remains separate from physique. See [Phase 4 report](docs/PHASE_4_REPORT.md) and [character contract](docs/CHARACTER_EVOLUTION.md). Prior phase notes below describe their implementation-time status.
+
 # Phase 3 — InBody & Body Composition Engine
 
 Local measurement creation, editing, confirmed deletion, nullable report readings, body calculations, report-based classifications, four history charts and current/target comparisons are implemented. [Phase 3 report](docs/PHASE_3_REPORT.md) lists verification and limitations; [body contract](docs/BODY_COMPOSITION.md) documents provenance, migrations and artistic avatar mapping. The existing procedural renderer still uses separate manual customization; measured morphing starts only in Phase 4.

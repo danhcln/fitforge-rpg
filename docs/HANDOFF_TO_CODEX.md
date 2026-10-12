@@ -1,3 +1,7 @@
+# Phase 4 implementation update — 2026-10-12
+
+Phase 4 is complete on `feature/phase-4-character-evolution`. Read [PHASE_4_REPORT.md](PHASE_4_REPORT.md) and [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md) before further work. Preserve measured/manual/appearance ownership and XP independence. Historical selections are transient and never modify measurement records. No Phase 5 work, push or merge was performed. At audit, main still contained Phase 2; this branch continues from completed Phase 3 commit 82258e1. Earlier handoff notes below describe prior phase status.
+
 # Phase 3 implementation update — 2026-10-12
 
 Body measurement CRUD, nullable inputs, calculation/provenance, reference classifications, charts, comparisons, target integration and the bounded `BodyCompositionToAvatar` v1 interface are complete. See [BODY_COMPOSITION.md](BODY_COMPOSITION.md) and [PHASE_3_REPORT.md](PHASE_3_REPORT.md). Schema/backup version is 3; v1/v2 backups and original readings remain supported. Advanced measured avatar morphing is deferred to Phase 4; manual customization is independent. The historical fixed SMM/PBF morph example below is superseded by the documented artistic mapping and must not be treated as a universal body classification or prediction.

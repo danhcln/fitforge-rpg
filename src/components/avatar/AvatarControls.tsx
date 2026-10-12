@@ -1,9 +1,6 @@
-import React from 'react'
 import type { BodyMorphParameters } from '@/types'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
-import { Sliders, Sparkles, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui'
+import { normalizedKeys } from '@/services/character/evolution'
 interface AvatarControlsProps {
   morph: BodyMorphParameters
   onChange: (updates: Partial<BodyMorphParameters>) => void
@@ -12,149 +9,19 @@ interface AvatarControlsProps {
   onToggleAura: () => void
   title?: string
 }
-
-export const AvatarControls: React.FC<AvatarControlsProps> = ({
-  morph,
-  onChange,
-  onReset,
-  auraEnabled,
-  onToggleAura,
-  title = 'Điều Chỉnh Tham Số Hình Thể (Morph Targets)',
-}) => {
-  return (
-    <Card className="border-slate-800 bg-slate-900/80">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-sm font-semibold text-teal-300">
-          <Sliders className="w-4 h-4 text-teal-400" />
-          {title}
-        </CardTitle>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs border-slate-700 text-slate-300"
-            onClick={onToggleAura}
-          >
-            <Sparkles className={`w-3.5 h-3.5 ${auraEnabled ? 'text-amber-400' : 'text-slate-500'}`} />
-            {auraEnabled ? 'Tắt Hào Quang' : 'Bật Hào Quang'}
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 text-slate-400 hover:text-white"
-            onClick={onReset}
-            title="Đặt lại thông số mặc định"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4 pt-1">
-        {/* Muscle Hypertrophy Morph */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs text-slate-300">
-            <span>Phát Triển Cơ Bắp (Muscle Hypertrophy)</span>
-            <span className="font-mono text-teal-400">{Math.round(morph.muscleMorph * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.02"
-            value={morph.muscleMorph}
-            onChange={(e) => onChange({ muscleMorph: parseFloat(e.target.value) })}
-            className="w-full accent-teal-400 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
-          />
-        </div>
-
-        {/* Fat Layer Morph */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs text-slate-300">
-            <span>Độ Dày Mỡ Dưới Da (Body Fat Thickness)</span>
-            <span className="font-mono text-amber-400">{Math.round(morph.fatMorph * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            min="0.05"
-            max="0.8"
-            step="0.02"
-            value={morph.fatMorph}
-            onChange={(e) => onChange({ fatMorph: parseFloat(e.target.value) })}
-            className="w-full accent-amber-400 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
-          />
-        </div>
-
-        {/* Shoulder & Chest Width */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-slate-300">
-              <span>Độ Rộng Vai</span>
-              <span className="font-mono text-slate-400">{morph.shoulderWidth.toFixed(2)}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.85"
-              max="1.45"
-              step="0.02"
-              value={morph.shoulderWidth}
-              onChange={(e) => onChange({ shoulderWidth: parseFloat(e.target.value) })}
-              className="w-full accent-cyan-400 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-slate-300">
-              <span>Độ Dày Ngực</span>
-              <span className="font-mono text-slate-400">{morph.chestWidth.toFixed(2)}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.85"
-              max="1.4"
-              step="0.02"
-              value={morph.chestWidth}
-              onChange={(e) => onChange({ chestWidth: parseFloat(e.target.value) })}
-              className="w-full accent-cyan-400 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
-            />
-          </div>
-        </div>
-
-        {/* Waist & Arm Proportions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-slate-300">
-              <span>Vòng Eo (Tỉ Lệ V-Taper)</span>
-              <span className="font-mono text-slate-400">{morph.waistWidth.toFixed(2)}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.75"
-              max="1.3"
-              step="0.02"
-              value={morph.waistWidth}
-              onChange={(e) => onChange({ waistWidth: parseFloat(e.target.value) })}
-              className="w-full accent-indigo-400 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-slate-300">
-              <span>Độ Dày Bắp Tay</span>
-              <span className="font-mono text-slate-400">{morph.armThickness.toFixed(2)}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.85"
-              max="1.45"
-              step="0.02"
-              value={morph.armThickness}
-              onChange={(e) => onChange({ armThickness: parseFloat(e.target.value) })}
-              className="w-full accent-purple-400 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
+const labels: Record<keyof BodyMorphParameters, string> = {
+  heightCm: 'Chiều cao minh họa (cm)', fatMorph: 'Lớp mỡ minh họa', muscleMorph: 'Cơ tổng thể minh họa',
+  chestWidth: 'Độ rộng ngực', shoulderWidth: 'Độ rộng vai', waistWidth: 'Độ rộng eo', armThickness: 'Độ dày tay', legThickness: 'Độ dày chân', definition: 'Độ nét cách điệu',
+  overallVolume: 'Thể tích tổng thể', upperBodyMuscle: 'Cơ thân trên minh họa', lowerBodyMuscle: 'Cơ thân dưới minh họa', armProportion: 'Tỷ lệ tay', legProportion: 'Tỷ lệ chân', trunkProportion: 'Tỷ lệ thân',
+}
+export function AvatarControls({ morph, onChange, onReset, auraEnabled, onToggleAura, title = 'Xem thử thủ công' }: AvatarControlsProps) {
+  return <Card><CardHeader><CardTitle>{title}</CardTitle></CardHeader><CardContent className="space-y-4">
+    <p className="text-xs text-slate-400">Thang hình ảnh, không phải số đo cơ thể. Các thanh 0–1 không biểu thị PBF thực tế.</p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{(Object.keys(labels) as (keyof BodyMorphParameters)[]).map(key => {
+      const normalized = normalizedKeys.includes(key as typeof normalizedKeys[number]) || ['fatMorph', 'muscleMorph', 'definition'].includes(key)
+      return <label key={key} className="text-xs text-slate-300 space-y-2"><span className="flex justify-between gap-2"><span>{labels[key]}</span><span className="font-mono text-teal-400">{(morph[key] ?? 0.5).toFixed(key === 'heightCm' ? 0 : 2)}</span></span>
+        <input aria-label={labels[key]} type="range" min={key === 'heightCm' ? 80 : normalized ? 0 : 0.5} max={key === 'heightCm' ? 250 : normalized ? 1 : 2} step={key === 'heightCm' ? 1 : 0.01} value={morph[key] ?? 0.5} onChange={e => onChange({ [key]: Number(e.target.value) })} className="w-full accent-teal-400" />
+      </label>
+    })}</div><div className="flex gap-2 flex-wrap"><Button size="sm" variant="outline" onClick={onReset}>Đặt lại bản xem thử</Button><Button size="sm" variant="outline" onClick={onToggleAura}>{auraEnabled ? 'Tắt hào quang' : 'Bật hào quang'}</Button></div>
+  </CardContent></Card>
 }

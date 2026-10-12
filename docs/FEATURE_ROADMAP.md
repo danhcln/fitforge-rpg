@@ -1,3 +1,7 @@
+# Phase 4 status — 2026-10-12
+
+Completed: improved procedural humanoid, seven normalized morph proxies, measurement/goal sources, historical avatar comparison, persistent presets/colors/clothing/manual previews, camera controls, responsive viewport and WebGL fallback. XP and physique remain independent. See [PHASE_4_REPORT.md](PHASE_4_REPORT.md) and [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md). Phase 5 has not started. Previous updates below describe earlier implementation-time status.
+
 # Phase 3 status — 2026-10-12
 
 Completed: local InBody CRUD/history, safe v3 migration/backups, null-safe BMI/fat/fat-free calculations, independent report-interval classifications, segmental visualization, charts, current/target integration and normalized avatar data mapping. No advanced avatar morphing, OCR, cloud integration, diagnosis or physical-change prediction is enabled. Phase 4 has not started. See [PHASE_3_REPORT.md](PHASE_3_REPORT.md) and [BODY_COMPOSITION.md](BODY_COMPOSITION.md); the original roadmap below is historical where it differs from the owner's Phase 3 scope.

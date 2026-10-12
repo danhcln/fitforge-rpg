@@ -1,3 +1,7 @@
+# Phase 4 implementation update — 2026-10-12
+
+The current character contract is [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md). The existing Phase 3 mapping now drives current/goal avatars and historical comparisons. Appearance and manual previews persist independently in optional character fields; schema/backup version stays 3 without record rewrites. Fixed procedural geometry uses bounded, smoothed transforms, a responsive single-canvas comparison, camera controls and WebGL fallback. XP never feeds physique mapping. Prior implementation updates and scaffold examples below are historical where superseded.
+
 # Phase 3 implementation update — 2026-10-12
 
 The current body-engine contract is documented in [BODY_COMPOSITION.md](BODY_COMPOSITION.md) and [PHASE_3_REPORT.md](PHASE_3_REPORT.md). Dexie/backup version 3 is additive and supports old reports/backups. Body calculations, references and normalized current/goal mappings are live derived state; procedural avatar customization stays independent and manual. Historical scaffold examples below must not be used as medical classification or physical-change prediction rules.

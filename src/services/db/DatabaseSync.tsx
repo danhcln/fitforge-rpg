@@ -36,6 +36,8 @@ export function DatabaseSync() {
     const latest = data.measurements.at(-1) ?? null
     const selected = useCharacterStore.getState().selectedGoalId
     useCharacterStore.setState({ measuredBody: BodyCompositionToAvatar(latest),
+      selectedMeasurementId: data.measurements.some(m => m.id === useCharacterStore.getState().selectedMeasurementId) ? useCharacterStore.getState().selectedMeasurementId : null,
+      comparisonMeasurementId: data.measurements.some(m => m.id === useCharacterStore.getState().comparisonMeasurementId) ? useCharacterStore.getState().comparisonMeasurementId : null,
       goalBodies: Object.fromEntries(data.goals.map(goal => [goal.id, BodyCompositionToAvatar(goalMeasurement(goal, latest), 'goal')])),
       selectedGoalId: data.goals.some(goal => goal.id === selected) ? selected : data.goals[0]?.id ?? null })
     useQuestStore.setState({ quests: data.quests, achievements: data.achievements })

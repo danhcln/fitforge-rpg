@@ -9,6 +9,7 @@ import { AvatarCanvas } from '@/components/avatar'
 import { PersonalRecords, ExerciseProgress } from '@/components/WorkoutHistory'
 import { BodyOverview } from '@/components/BodyComposition'
 import { useInBodyStore } from '@/stores'
+import { resolveEvolution } from '@/services/character/evolution'
 import {
   Dumbbell,
   ChevronRight,
@@ -22,10 +23,12 @@ export const DashboardPage: React.FC = () => {
 
   const { quests } = useQuestStore()
   const { sessions } = useWorkoutStore()
-  const { character, setMode } = useCharacterStore()
+  const { character, setMode, goalBodies, selectedGoalId } = useCharacterStore()
 
   const latestSession = sessions[0]
   const { latestMeasurement, measurements } = useInBodyStore()
+  const current = resolveEvolution({ ...character, mode: 'current' }, measurements, null, goalBodies, selectedGoalId)
+  const goal = resolveEvolution({ ...character, mode: 'goal' }, measurements, null, goalBodies, selectedGoalId)
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
@@ -45,7 +48,7 @@ export const DashboardPage: React.FC = () => {
               Chào mừng trở lại, <span className="text-teal-400">{user.name}</span>!
             </h1>
             <p className="text-sm text-slate-300 max-w-xl">
-              Ghi lại buổi tập thực tế để tăng kinh nghiệm RPG. Avatar được tinh chỉnh thủ công trong phòng nhân vật.
+              Ghi lại buổi tập để tăng XP. Hình thể avatar dựa trên phiếu đo hoặc bản xem thử độc lập với Level.
             </p>
           </div>
 
@@ -97,8 +100,10 @@ export const DashboardPage: React.FC = () => {
 
             <div className="mt-3">
               <AvatarCanvas
-                currentMorph={character.currentBody}
-                goalMorph={character.goalBody}
+                currentMorph={current.morph}
+                goalMorph={goal.morph}
+                appearance={current.appearance}
+                label={character.visualSource === 'manual' ? 'Bản xem thử thủ công' : character.mode === 'goal' ? 'Mục tiêu · mô phỏng giả định' : `Phiếu hiện tại · ${latestMeasurement?.date ?? 'chưa có số đo'}`}
                 mode={character.mode}
                 onModeChange={setMode}
                 height="380px"
