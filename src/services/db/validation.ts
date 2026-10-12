@@ -14,13 +14,15 @@ export const examples: Record<string, Record<string, unknown>> = {
 const optional = new Set(['source', 'notes', 'secondaryMuscles', 'instructionsVi', 'rpe', 'isWarmup', 'isPr',
   'inBodyScore', 'previousWeightKg', 'unlockedAt', 'headgear', 'wristWraps', 'liftingBelt', 'kneeSleeves',
   'auraColor', 'status', 'startedAt', 'kind', 'value', 'weightKg', 'sessionId', 'editOf', 'visualSource', 'appearance',
-  'overallVolume', 'upperBodyMuscle', 'lowerBodyMuscle', 'armProportion', 'legProportion', 'trunkProportion'])
+  'overallVolume', 'upperBodyMuscle', 'lowerBodyMuscle', 'armProportion', 'legProportion', 'trunkProportion',
+  'periodStart', 'periodEnd', 'questKind', 'rewardTitle', 'rewardAccent', 'planId', 'plannedDate'])
 const extras = { source: 'real', status: 'completed', startedAt: 0, kind: 'weight', value: 0,
   weightKg: 0, sessionId: '', rpe: 0, isWarmup: false, isPr: false, notes: '', unlockedAt: '',
   inBodyScore: 0, previousWeightKg: 0, instructionsVi: '', secondaryMuscles: [''],
   headgear: '', wristWraps: '', liftingBelt: '', kneeSleeves: '', auraColor: '', editOf: '', visualSource: 'measurement',
   appearance: { preset: 'forge', skinColor: '#a67758', clothingColor: '#263b50', accentColor: '#14b8a6', clothing: 'training' },
-  overallVolume: 0, upperBodyMuscle: 0, lowerBodyMuscle: 0, armProportion: 0, legProportion: 0, trunkProportion: 0 }
+  overallVolume: 0, upperBodyMuscle: 0, lowerBodyMuscle: 0, armProportion: 0, legProportion: 0, trunkProportion: 0,
+  periodStart: '', periodEnd: '', questKind: 'workout-day', rewardTitle: '', rewardAccent: '#14b8a6', planId: '', plannedDate: '' }
 const enums: Record<string, string[]> = {
   source: ['real', 'demo'], status: ['draft', 'completed'], kind: ['weight', 'reps', 'volume', 'estimated1RM'],
   muscleGroup: ['Ngực', 'Lưng', 'Chân', 'Vai', 'Tay', 'Bụng', 'Toàn thân'],
@@ -28,6 +30,7 @@ const enums: Record<string, string[]> = {
   avatarClass: ['Juggernaut', 'Aesthetic', 'Powerlifter', 'All-Rounder'], mode: ['current', 'goal'],
   tier: ['bronze', 'silver', 'gold', 'mythic'], frequency: ['daily', 'weekly', 'epic'],
   visualSource: ['measurement', 'manual'], preset: ['forge', 'scout', 'guardian'], clothing: ['training', 'suit', 'shorts'],
+  questKind: ['workout-day', 'workout-week', 'recovery'],
 }
 export function object(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Dữ liệu phải là đối tượng JSON.')
@@ -67,8 +70,8 @@ function shape(value: unknown, template: unknown, key = ''): void {
     if (typeof value === 'string') {
       if (value.length > 10000 || (['id', 'name', 'nameVi', 'nameEn', 'title', 'exerciseId', 'userId', 'exerciseName'].includes(key) && !value.trim())) throw new Error(`Chuỗi ${key} không hợp lệ.`)
       if (enums[key] && !enums[key].includes(value)) throw new Error(`${key} không được hỗ trợ.`)
-      if (['skinColor', 'clothingColor', 'accentColor'].includes(key) && !/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error('Màu cần có dạng #RRGGBB.')
-      if (['date', 'deadline', 'achievedDate', 'createdAt', 'unlockedAt'].includes(key) || (key === 'lastActiveDate' && value)) {
+      if (['skinColor', 'clothingColor', 'accentColor', 'rewardAccent'].includes(key) && !/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error('Màu cần có dạng #RRGGBB.')
+      if (['date', 'deadline', 'achievedDate', 'createdAt', 'unlockedAt', 'periodStart', 'periodEnd', 'plannedDate'].includes(key) || (key === 'lastActiveDate' && value)) {
         if (!/^\d{4}-\d{2}-\d{2}/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value.slice(0, 10)) throw new Error(`Ngày ${key} không hợp lệ.`)
       }
     }
@@ -83,6 +86,7 @@ export function validateEntity(table: string, value: unknown): void {
   if (table === 'goals' && !['muscle_gain', 'fat_loss', 'strength', 'habit'].includes(String(row.category))) throw new Error('Loại mục tiêu không hợp lệ.')
   if (table === 'achievements' && !['workout', 'strength', 'inbody', 'streak', 'quest'].includes(String(row.category))) throw new Error('Loại danh hiệu không hợp lệ.')
   if (table === 'users' && Number(row.energy) > Number(row.maxEnergy)) throw new Error('Năng lượng vượt quá giới hạn.')
+  if (table === 'users' && Number(row.level) > 100) throw new Error('Cấp RPG vượt quá giới hạn lưu trữ.')
 }
 
 export const demoRows: Record<string, { id: string }[]> = {

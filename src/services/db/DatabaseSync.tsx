@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/services/db'
 import { calculatePersonalRecords } from '@/services/workout/calculations'
+import { localDate } from '@/services/workout/calculations'
 import { BodyCompositionToAvatar, goalMeasurement } from '@/services/bodyComposition/BodyCompositionToAvatar'
 import { useWorkoutStore, useUserStore, useCharacterStore, useInBodyStore, useQuestStore } from '@/stores'
 
@@ -18,7 +19,7 @@ export function DatabaseSync() {
       draft: realWorkouts.find(row => row.status === 'draft'), characters,
       measurements: measurements.filter(row => row.source !== 'demo').sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)),
       goals: goals.filter(row => row.source !== 'demo' && !row.isCompleted).sort((a, b) => a.deadline.localeCompare(b.deadline) || a.id.localeCompare(b.id)),
-      quests: quests.filter(row => row.source !== 'demo'), achievements: achievements.filter(row => row.source !== 'demo') }
+      quests: quests.filter(row => row.source !== 'demo' && row.periodStart && row.periodEnd && row.periodStart <= localDate() && row.periodEnd >= localDate()), achievements: achievements.filter(row => row.source !== 'demo') }
   }, [])
   useEffect(() => {
     if (!data) return

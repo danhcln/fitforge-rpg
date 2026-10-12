@@ -98,7 +98,7 @@ export const WorkoutPage: React.FC = () => {
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Ghi nhận từng hiệp tập, trọng lượng và số lần lặp thực tế để tích lũy EXP và tăng cơ bắp.
+            Ghi nhận hiệp tập thực tế để tích lũy XP. XP không thay đổi hình thể avatar; ưu tiên kỹ thuật và phục hồi.
           </p>
         </div>
 

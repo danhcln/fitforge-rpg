@@ -1,3 +1,7 @@
+# Phase 5 — RPG Progression & Fitness Planning
+
+Persistent XP events, current-period quests, workout achievements, cosmetic title/color rewards, saved weekly calendars and an age-aware food/hydration journal are implemented. Physique mapping remains independent. See [Phase 5 report](docs/PHASE_5_REPORT.md) and [RPG/planning contracts](docs/RPG_PLANNING.md). Dexie and JSON backup version are now 4; older records/backups remain supported. Prior notes below describe their implementation-time status.
+
 # Phase 4 — Character Evolution
 
 The procedural character now follows actual measurement checkpoints or selected hypothetical goals, with smooth morphing, dated comparisons, camera controls, saved appearance presets and independent manual previews. XP remains separate from physique. See [Phase 4 report](docs/PHASE_4_REPORT.md) and [character contract](docs/CHARACTER_EVOLUTION.md). Prior phase notes below describe their implementation-time status.

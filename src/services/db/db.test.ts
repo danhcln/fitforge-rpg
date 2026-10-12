@@ -95,7 +95,7 @@ describe('backups', () => {
     const backup = await db.exportFullBackup()
     const fail = () => { throw new Error('restore failure') }
     db.auditLog.hook('creating', fail)
-    await expect(db.importBackup({ ...backup, workoutSessions: [sessionRow()] })).rejects.toThrow('restore failure')
+    await expect(db.importBackup({ ...backup, version: 3, workoutSessions: [sessionRow()] })).rejects.toThrow('restore failure')
     db.auditLog.hook('creating').unsubscribe(fail)
     expect(await db.workoutSessions.count()).toBe(0)
     expect(await db.workoutSets.count()).toBe(0)
@@ -140,7 +140,7 @@ describe('backups', () => {
     expect((await db.personalRecords.toArray()).every(r => r.source === 'demo')).toBe(true)
     const actual = await db.saveWorkout(sessionRow())
     const current = await db.exportFullBackup()
-    await db.importBackup({ ...current, workoutSessions: [{ ...actual, name: 'Overwrite attempt', source: 'demo' }] })
+    await expect(db.importBackup({ ...current, workoutSessions: [{ ...actual, name: 'Overwrite attempt', source: 'demo' }] })).rejects.toThrow('Nhật ký XP')
     expect((await db.workoutSessions.get(actual.id))?.name).toBe(actual.name)
     expect((await db.personalRecords.toArray()).find(r => r.kind === 'weight')?.value).toBe(60)
   })

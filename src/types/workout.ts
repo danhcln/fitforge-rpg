@@ -35,6 +35,8 @@ export interface WorkoutSession {
   status?: 'draft' | 'completed'
   startedAt?: number
   editOf?: string
+  planId?: string
+  plannedDate?: string
   id: string
   date: string
   name: string

@@ -1,5 +1,7 @@
 import { BodyHistoryCharts } from '@/components/BodyComposition'
 import { WorkoutHistory } from '@/components/WorkoutHistory'
+import { ProgressionHistory } from '@/components/RpgProgression'
+import { PlanningSummary } from '@/components/PlanningSummary'
 import React from 'react'
 import {
   ResponsiveContainer,
@@ -101,6 +103,8 @@ export const HistoryAchievementsPage: React.FC = () => {
 
       <BodyHistoryCharts />
       <WorkoutHistory />
+      <PlanningSummary />
+      <ProgressionHistory />
 
       {/* ACHIEVEMENTS & TROPHIES GRID */}
       <Card className="border-slate-800 bg-slate-900/80">
@@ -112,7 +116,7 @@ export const HistoryAchievementsPage: React.FC = () => {
                 Huy Hiệu & Danh Hiệu Chiến Binh RPG
               </CardTitle>
               <p className="text-xs text-slate-400 mt-0.5">
-                Các mốc thành tích mở khóa danh hiệu và tiền thưởng
+                Các mốc dài hạn mở khóa danh hiệu và màu điểm nhấn, không khuyến khích tập quá sức
               </p>
             </div>
             <Badge variant="purple" size="sm">
@@ -181,8 +185,8 @@ export const HistoryAchievementsPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-900 text-[10px]">
-                    <span className="text-teal-400 font-bold">+{ach.rewardXp} XP</span>
-                    <span className="text-amber-400 font-mono font-bold">+{ach.rewardGold} Vàng</span>
+                    <span className="text-teal-400 font-bold">{ach.rewardTitle ?? 'Huy hiệu đã lưu'}</span>
+                    <span className="text-amber-400">{ach.unlockedAt ? new Date(ach.unlockedAt).toLocaleDateString('vi-VN') : 'Chưa mở'}</span>
                   </div>
                 </div>
               )

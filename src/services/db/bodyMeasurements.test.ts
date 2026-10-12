@@ -48,7 +48,7 @@ describe('measurement transactions and backups', () => {
     const first = row({ smmKg: null, bmrKcal: null, segmentalLean: { leftArmKg: 3 }, references: { pbfPercent: { min: 10, max: 20, unit: '%', label: 'Personal device interval', scope: 'individual' } } })
     await db.saveMeasurement(first)
     const backup = JSON.parse(JSON.stringify(await db.exportFullBackup()))
-    expect(backup.version).toBe(3)
+    expect(backup.version).toBe(4)
     const restored = new FitForgeDatabase(`restore-body-${crypto.randomUUID()}`)
     try { await restored.importBackup(backup); expect(await restored.bodyMeasurements.get(first.id)).toEqual({ ...first, source: 'real' }) }
     finally { await restored.delete() }
@@ -87,7 +87,7 @@ describe('safe v2 to v3 measurement migration', () => {
     await legacy.table('bodyMeasurements').bulkAdd([real, demo]); legacy.close()
     const upgraded = new FitForgeDatabase(name)
     try {
-      await upgraded.open(); expect(upgraded.verno).toBe(3)
+      await upgraded.open(); expect(upgraded.verno).toBe(4)
       expect(await upgraded.bodyMeasurements.get(real.id)).toEqual(real)
       expect(await upgraded.bodyMeasurements.get(demo.id)).toEqual(demo)
       expect((await upgraded.bodyMeasurements.where('source').equals('real').toArray())).toHaveLength(1)

@@ -1,3 +1,7 @@
+# Phase 5 compatibility update — 2026-10-12
+
+The Phase 4 mapping and geometry remain intact. Phase 5 adds earned cosmetic title/accent hooks and renders a lightweight shirtless/shorts base; legacy clothing choices remain stored but are not rendered as complex clothing. Database/backup version is now 4. See [RPG_PLANNING.md](RPG_PLANNING.md) for persistence/reward semantics. Earlier Phase 4 contracts below describe their implementation-time version and remain applicable to physique ownership and normalized mapping.
+
 # Character evolution contract — Phase 4
 
 ## Sources and ownership

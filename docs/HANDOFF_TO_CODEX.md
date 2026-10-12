@@ -1,3 +1,7 @@
+# Phase 5 implementation update — 2026-10-12
+
+Phase 5 is complete on `feature/phase-5-rpg-planning`, based on Phase 4 commit 81d4fda now present on local main. Read [PHASE_5_REPORT.md](PHASE_5_REPORT.md) and [RPG_PLANNING.md](RPG_PLANNING.md) before further work. Preserve ledger idempotency, additive restore, age safeguards and strict reward/physique separation. Do not regenerate restrictive nutrition targets or introduce complex clothing without a new authorized scope. No subsequent phase, push or merge was performed. Earlier notes below describe prior implementation-time status.
+
 # Phase 4 implementation update — 2026-10-12
 
 Phase 4 is complete on `feature/phase-4-character-evolution`. Read [PHASE_4_REPORT.md](PHASE_4_REPORT.md) and [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md) before further work. Preserve measured/manual/appearance ownership and XP independence. Historical selections are transient and never modify measurement records. No Phase 5 work, push or merge was performed. At audit, main still contained Phase 2; this branch continues from completed Phase 3 commit 82258e1. Earlier handoff notes below describe prior phase status.

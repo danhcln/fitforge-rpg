@@ -15,6 +15,8 @@ export interface Achievement {
   unlockedAt?: string
   rewardXp: number
   rewardGold: number
+  rewardTitle?: string
+  rewardAccent?: string
 }
 
 export type QuestFrequency = 'daily' | 'weekly' | 'epic'
@@ -31,4 +33,7 @@ export interface Quest {
   rewardGold: number
   isCompleted: boolean
   isClaimed: boolean
+  periodStart?: string
+  periodEnd?: string
+  questKind?: 'workout-day' | 'workout-week' | 'recovery'
 }

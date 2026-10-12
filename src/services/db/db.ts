@@ -4,15 +4,15 @@ import { mockExercises } from '@/mock'
 import { calculatePersonalRecords, localDate, trainingVolume, validateWorkout } from '@/services/workout/calculations'
 import { classifyLegacy, examples, object, validateEntity, type LocalRecord } from './validation'
 import { defaultCharacter, defaultUser } from './defaults'
+import type { ProgressionEvent, TrainingPlan, NutritionEntry, NutritionSettings } from '@/types'
+import { phase5Tables, validatePhase5 } from '@/services/planning/validation'
+import { energyAllowed, defaultNutritionSettings } from '@/services/planning/calculations'
+import { workoutXp } from '@/services/rpg/calculations'
+import { initializeProgression, refreshRpg, setAward, claimQuest, applyCosmetic } from '@/services/rpg/persistence'
+import { validateProgressionSnapshot } from '@/services/rpg/backupValidation'
 
 export interface StoredSet extends WorkoutSet { sessionId: string; exerciseId: string }
 export interface AuditEntry { id: string; at: string; action: string; entityId: string }
-function applyXp(user: LocalRecord<UserProfile>, delta: number): LocalRecord<UserProfile> {
-  let level = user.level, xp = user.currentXp + delta, next = user.nextLevelXp
-  while (xp < 0 && level > 1) { level--; next = Math.max(1, Math.round(next / 1.25)); xp += next }
-  while (xp >= next) { xp -= next; level++; next = Math.round(next * 1.25) }
-  return { ...user, level, currentXp: Math.max(0, xp), nextLevelXp: next }
-}
 const schema = {
   users: 'id, level', exercises: 'id, muscleGroup, equipment', workoutSessions: 'id, date, splitType',
   personalRecords: 'id, exerciseId, achievedDate', bodyMeasurements: 'id, date', goals: 'id, category',
@@ -30,6 +30,10 @@ export class FitForgeDatabase extends Dexie {
   achievements!: Table<LocalRecord<Achievement>, string>
   quests!: Table<LocalRecord<Quest>, string>
   auditLog!: Table<AuditEntry, string>
+  progressionEvents!: Table<ProgressionEvent, string>
+  trainingPlans!: Table<TrainingPlan, string>
+  nutritionEntries!: Table<NutritionEntry, string>
+  nutritionSettings!: Table<NutritionSettings, string>
 
   constructor(name = 'FitForgeRPG_DB') {
     super(name)
@@ -56,6 +60,9 @@ export class FitForgeDatabase extends Dexie {
     })
     // Add an index only: legacy heights and device readings must not be invented or rewritten.
     this.version(3).stores({ bodyMeasurements: 'id, date, source' })
+    this.version(4).stores({ progressionEvents: 'id, userId, kind, sourceId, [userId+sourceId], at',
+      trainingPlans: 'id, userId, weekStart', nutritionEntries: 'id, userId, date, [userId+date]', nutritionSettings: 'id, userId' })
+      .upgrade(async () => { await initializeProgression(this) })
   }
 
   flattenSets(session: WorkoutSession): StoredSet[] {
@@ -76,15 +83,21 @@ export class FitForgeDatabase extends Dexie {
       for (const exercise of mockExercises) if (!await this.exercises.get(exercise.id)) await this.exercises.add(exercise)
       const profile = await this.users.get(user.id)
       if (profile) await this.users.put({ ...profile, ...await this.streak() })
+      await refreshRpg(this)
     })
   }
   async putEntity(tableName: string, row: unknown): Promise<void> {
     validateEntity(tableName, row)
     if (tableName === 'bodyMeasurements' && object(row).source === 'demo') throw new Error('Không lưu dữ liệu mẫu thành phiếu đo thực tế.')
-    if (['workoutSessions', 'personalRecords'].includes(tableName)) throw new Error('Dùng giao dịch buổi tập để cập nhật kỷ lục.')
+    if (['workoutSessions', 'personalRecords', 'quests', 'achievements'].includes(tableName)) throw new Error('Dùng giao dịch nghiệp vụ để cập nhật tiến trình.')
     await this.transaction('rw', this.table(tableName), this.auditLog, async () => {
       if (tableName === 'bodyMeasurements' && (await this.bodyMeasurements.get(String(object(row).id)))?.source === 'demo') throw new Error('Không ghi đè phiếu đo mẫu thành dữ liệu thực.')
-      await this.table(tableName).put({ ...object(row), source: 'real' })
+      const incoming: Record<string, unknown> = { ...object(row), source: 'real' }
+      if (tableName === 'users') {
+        const existing = await this.users.get(String(incoming.id))
+        if (existing) Object.assign(incoming, { level: existing.level, currentXp: existing.currentXp, nextLevelXp: existing.nextLevelXp, gold: existing.gold })
+      }
+      await this.table(tableName).put(incoming)
       await this.log('update', String(object(row).id))
     })
   }
@@ -128,15 +141,21 @@ export class FitForgeDatabase extends Dexie {
     validateEntity('workoutSessions', { ...session, status: 'completed' })
     validateWorkout(session)
     return this.transaction('rw', this.tables, async () => {
+      await initializeProgression(this)
       const previous = await this.workoutSessions.get(session.id)
       if (session.editOf && (session.editOf !== session.id || previous?.status !== 'completed')) throw new Error('Buổi tập gốc đã bị thay đổi hoặc xóa. Không thể lưu chỉnh sửa.')
       if (previous?.source === 'demo') throw new Error('Không chỉnh sửa bản ghi mẫu thành dữ liệu thực.')
       for (const ex of session.exercises) if (!await this.exercises.get(ex.exerciseId)) throw new Error('Bài tập không tồn tại.')
       const volume = session.exercises.reduce((n, ex) => n + trainingVolume(ex.sets), 0)
       const saved: WorkoutSession = { ...session, totalVolumeKg: volume, source: 'real', status: 'completed',
-        xpEarned: Math.round(volume * 0.035) + 200 }
+        xpEarned: workoutXp(volume) }
       delete saved.editOf
       await this.workoutSessions.put(saved)
+      await this.clearInvalidPlanLinks(saved.id, saved.date)
+      if (saved.planId && saved.plannedDate === saved.date) {
+        const plan = await this.trainingPlans.get(saved.planId)
+        if (plan && plan.days.some(d => d.date === saved.date && !d.isRestDay && !d.completedSessionId)) await this.trainingPlans.put({ ...plan, days: plan.days.map(d => d.date === saved.date && !d.isRestDay && !d.completedSessionId ? { ...d, completedSessionId: saved.id } : d) })
+      }
       await this.workoutSets.where('sessionId').equals(saved.id).delete()
       await this.workoutSets.bulkPut(this.flattenSets(saved))
       if (draftId && draftId !== saved.id) {
@@ -148,9 +167,9 @@ export class FitForgeDatabase extends Dexie {
       await this.rebuildRecords()
       const user = (await this.users.toArray()).find(row => row.source !== 'demo')
       if (user) {
-        const delta = saved.xpEarned - (previous?.status !== 'draft' ? previous?.xpEarned ?? 0 : 0)
-        await this.users.put({ ...applyXp(user, delta), ...await this.streak() })
+        await setAward(this, user.id, 'workout', saved.id, saved.xpEarned)
       }
+      await refreshRpg(this)
       await this.log(previous?.status === 'completed' ? 'edit-workout' : 'complete-workout', saved.id)
       return saved
     })
@@ -166,27 +185,31 @@ export class FitForgeDatabase extends Dexie {
   }
   async deleteWorkout(id: string): Promise<void> {
     await this.transaction('rw', this.tables, async () => {
+      await initializeProgression(this)
       const previous = await this.workoutSessions.get(id)
       if (!previous || previous.source === 'demo') return
       await this.workoutSessions.delete(id)
+      await this.clearInvalidPlanLinks(id)
       await this.workoutSets.where('sessionId').equals(id).delete()
       await this.rebuildRecords()
       const user = (await this.users.toArray()).find(row => row.source !== 'demo')
-      if (user) await this.users.put({ ...applyXp(user, previous.status === 'draft' ? 0 : -previous.xpEarned), ...await this.streak() })
+      if (user && previous.status !== 'draft') await setAward(this, user.id, 'workout', id, 0)
+      await refreshRpg(this)
       await this.log('delete-workout', id)
     })
   }
   async exportFullBackup(): Promise<Record<string, unknown>> {
     return this.transaction('r', this.tables, async () => {
-      const backup: Record<string, unknown> = { version: 3, exportedAt: new Date().toISOString() }
+      const backup: Record<string, unknown> = { version: 4, exportedAt: new Date().toISOString() }
       for (const name of Object.keys(examples)) backup[name === 'users' ? 'user' : name] = await this.table(name).toArray()
       backup.auditLog = await this.auditLog.toArray()
+      for (const name of phase5Tables) backup[name] = await this.table(name).toArray()
       return backup
     })
   }
   async importBackup(input: unknown): Promise<number> {
     const backup = object(input)
-    if (![1, 2, 3].includes(Number(backup.version)) || typeof backup.version !== 'number') throw new Error('Phiên bản sao lưu không được hỗ trợ.')
+    if (![1, 2, 3, 4].includes(Number(backup.version)) || typeof backup.version !== 'number') throw new Error('Phiên bản sao lưu không được hỗ trợ.')
     const rows: Record<string, Record<string, unknown>[]> = {}
     for (const name of Object.keys(examples)) {
       const entries = backup[name === 'users' ? 'user' : name]
@@ -209,6 +232,22 @@ export class FitForgeDatabase extends Dexie {
     for (const row of rows.characterStates) if (!userIds.has(row.userId)) throw new Error('Sao lưu thiếu hồ sơ nhân vật.')
     for (const row of rows.personalRecords) if (!exerciseIds.has(row.exerciseId)) throw new Error('Sao lưu thiếu bài tập của kỷ lục.')
     for (const row of rows.workoutSessions) if (row.editOf !== undefined && !sessionIds.has(row.editOf)) throw new Error('Sao lưu thiếu buổi tập gốc của bản nháp.')
+    const extraRows: Record<string, Record<string, unknown>[]> = {}
+    for (const name of phase5Tables) {
+      const entries = backup[name] ?? (backup.version === 4 ? undefined : [])
+      if (!Array.isArray(entries) || entries.length > 100000) throw new Error(`Thiếu hoặc sai bảng ${name}.`)
+      const ids = new Set<string>()
+      extraRows[name] = entries.map(entry => { validatePhase5(name, entry); const row = object(entry)
+        if (ids.has(String(row.id)) || !userIds.has(row.userId)) throw new Error('ID trùng hoặc thiếu hồ sơ tiến trình.')
+        ids.add(String(row.id)); return row })
+    }
+    for (const row of extraRows.trainingPlans) for (const day of (row as unknown as TrainingPlan).days) {
+      if (day.exercises.some(ex => !exerciseIds.has(ex.exerciseId))) throw new Error('Kế hoạch thiếu bài tập.')
+      if (day.completedSessionId) { const session = rows.workoutSessions.find(s => s.id === day.completedSessionId)
+        // Deleted or moved links are safely treated as scheduled; preserved for history.
+        if (session && (session.date !== day.date || session.source === 'demo' || session.status === 'draft')) throw new Error('Liên kết buổi tập không hợp lệ.') }
+    }
+    if (backup.version === 4) validateProgressionSnapshot(rows.users as unknown as LocalRecord<UserProfile>[], rows.workoutSessions as unknown as WorkoutSession[], rows.quests as unknown as Quest[], rows.achievements as unknown as Achievement[], extraRows.progressionEvents as unknown as ProgressionEvent[])
     const auditEntries: AuditEntry[] = []
     if (backup.auditLog !== undefined) {
       if (!Array.isArray(backup.auditLog)) throw new Error('Nhật ký sao lưu không hợp lệ.')
@@ -220,7 +259,9 @@ export class FitForgeDatabase extends Dexie {
     }
     // Merge only new IDs. Existing rows are never overwritten, even by a demo backup.
     return this.transaction('rw', this.tables, async () => {
+      await initializeProgression(this)
       let imported = 0
+      const inserted = new Map<string, Set<string>>()
       for (const [name, entries] of Object.entries(rows)) {
         for (const row of entries) {
           if (name === 'personalRecords' && String(row.id).startsWith('record:')) continue
@@ -232,14 +273,79 @@ export class FitForgeDatabase extends Dexie {
             await this.workoutSets.bulkPut(this.flattenSets(session))
           }
           await this.table(name).add(row)
+          const ids = inserted.get(name) ?? new Set<string>(); ids.add(String(row.id)); inserted.set(name, ids)
           imported++
         }
       }
+      // Keep event history for new sources; never merge later revisions over an existing source.
+      for (const [name, entries] of Object.entries(extraRows)) for (const row of entries) {
+        if (await this.table(name).get(String(row.id))) continue
+        if (name === 'progressionEvents') {
+          const e = row as unknown as ProgressionEvent
+          const isNewUser = inserted.get('users')?.has(e.userId)
+          const isNewSource = inserted.get(e.kind === 'workout' ? 'workoutSessions' : e.kind === 'achievement' ? 'achievements' : 'quests')?.has(e.sourceId)
+          if ((e.kind === 'adjustment' && !isNewUser) || (!isNewUser && !isNewSource)) continue
+        }
+        await this.table(name).add(row); imported++
+      }
+      await initializeProgression(this)
+      const owner = (await this.users.toArray()).find(u => u.source !== 'demo')
+      if (owner) for (const id of inserted.get('workoutSessions') ?? []) {
+        const s = await this.workoutSessions.get(id)
+        if (s?.source !== 'demo' && s?.status !== 'draft') await setAward(this, owner.id, 'workout', id, s!.xpEarned)
+      }
       for (const row of auditEntries) if (!await this.auditLog.get(row.id)) await this.auditLog.add(row)
       await this.rebuildRecords()
+      await refreshRpg(this)
       await this.log('merge-backup', String(imported))
       return imported
     })
+  }
+
+  async refreshRpg(): Promise<void> { await this.transaction('rw', this.tables, () => refreshRpg(this)) }
+  private async clearInvalidPlanLinks(id: string, retainedDate?: string): Promise<void> {
+    for (const plan of await this.trainingPlans.toArray()) {
+      if (plan.days.some(d => d.completedSessionId === id && d.date !== retainedDate)) await this.trainingPlans.put({ ...plan, days: plan.days.map(d => d.completedSessionId === id && d.date !== retainedDate ? { ...d, completedSessionId: null } : d) })
+    }
+  }
+  async claimQuest(id: string, recovery = false): Promise<void> { await claimQuest(this, id, recovery) }
+  async applyCosmetic(id: string, kind: 'title' | 'accent'): Promise<void> { await applyCosmetic(this, id, kind) }
+  async savePlan(plan: TrainingPlan): Promise<void> {
+    validatePhase5('trainingPlans', plan)
+    await this.transaction('rw', this.tables, async () => {
+      if ((await this.users.get(plan.userId))?.source === 'demo' || !await this.users.get(plan.userId)) throw new Error('Hồ sơ không tồn tại.')
+      for (const day of plan.days) {
+        for (const ex of day.exercises) if (!await this.exercises.get(ex.exerciseId)) throw new Error('Bài tập không tồn tại.')
+        if (day.completedSessionId) {
+          const s = await this.workoutSessions.get(day.completedSessionId)
+          if (!s || s.source === 'demo' || s.status === 'draft' || s.date !== day.date) throw new Error('Chọn buổi đã hoàn thành đúng ngày.')
+        }
+      }
+      await this.trainingPlans.put(plan); await this.log('save-plan', plan.id)
+    })
+  }
+  async saveNutritionSettings(settings: NutritionSettings): Promise<void> {
+    validatePhase5('nutritionSettings', settings)
+    await this.transaction('rw', this.users, this.nutritionSettings, this.auditLog, async () => {
+      const user = await this.users.get(settings.userId)
+      if (!user || user.source === 'demo') throw new Error('Hồ sơ không tồn tại.')
+      await this.nutritionSettings.put(settings); await this.log('nutrition-settings', settings.id)
+    })
+  }
+  async saveNutrition(entry: NutritionEntry): Promise<void> {
+    validatePhase5('nutritionEntries', entry)
+    await this.transaction('rw', this.users, this.nutritionSettings, this.nutritionEntries, this.auditLog, async () => {
+      const user = await this.users.get(entry.userId)
+      if (!user || user.source === 'demo') throw new Error('Hồ sơ không tồn tại.')
+      const settings = await this.nutritionSettings.get(`nutrition:${entry.userId}`) ?? defaultNutritionSettings(entry.userId)
+      const previous = await this.nutritionEntries.get(entry.id)
+      if (entry.energyKcal !== null && !energyAllowed(settings) && entry.energyKcal !== previous?.energyKcal) throw new Error('Năng lượng tùy chọn chỉ bật khi xác nhận từ 18 tuổi.')
+      if (previous && previous.userId !== entry.userId) throw new Error('Không được sửa nhật ký hồ sơ khác.')
+      await this.nutritionEntries.put(entry); await this.log('save-nutrition', entry.id)
+    })
+  }
+  async deletePlanningEntry(table: 'trainingPlans' | 'nutritionEntries', id: string): Promise<void> {
+    await this.transaction('rw', this.table(table), this.auditLog, async () => { await this.table(table).delete(id); await this.log('delete-' + table, id) })
   }
 }
 export const db = new FitForgeDatabase()

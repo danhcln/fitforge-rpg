@@ -1,3 +1,7 @@
+# Phase 5 implementation update — 2026-10-12
+
+The current progression, planning and nutrition contracts are [RPG_PLANNING.md](RPG_PLANNING.md). Dexie/backup v4 adds an append-only progression ledger, weekly plans, food entries and journal preferences with additive migration. Workout/quest rewards and level progress are transactional and reconciled after corrections; cosmetics never change physique. The existing character geometry now renders a simple shirtless/shorts base while retaining legacy customization data. Prior phase updates and scaffold examples below are historical where superseded.
+
 # Phase 4 implementation update — 2026-10-12
 
 The current character contract is [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md). The existing Phase 3 mapping now drives current/goal avatars and historical comparisons. Appearance and manual previews persist independently in optional character fields; schema/backup version stays 3 without record rewrites. Fixed procedural geometry uses bounded, smoothed transforms, a responsive single-canvas comparison, camera controls and WebGL fallback. XP never feeds physique mapping. Prior implementation updates and scaffold examples below are historical where superseded.

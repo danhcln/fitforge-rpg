@@ -12,6 +12,7 @@ interface WorkoutStoreState {
   busy: boolean
   pendingWrites: number
   startSession: (name: string, splitType: string) => void
+  startPlannedSession: (session: WorkoutSession) => void
   editSession: (session: WorkoutSession) => void
   updateSession: (updates: Partial<Pick<WorkoutSession, 'name' | 'date' | 'splitType' | 'notes' | 'durationMinutes'>>) => void
   addExerciseToSession: (exercise: Exercise) => void
@@ -49,6 +50,11 @@ export const useWorkoutStore = create<WorkoutStoreState>((set, get) => {
         startedAt: Date.now(), status: 'draft', source: 'real', durationMinutes: 0, totalVolumeKg: 0, xpEarned: 0, exercises: [] }
       set({ activeSession: session, error: null })
       persist(session)
+    },
+    startPlannedSession: session => {
+      if (get().activeSession || get().busy) { set({ error: 'Lưu hoặc hủy bản nháp hiện tại trước.' }); return }
+      const draft = { ...session, status: 'draft' as const, xpEarned: 0, totalVolumeKg: 0 }
+      set({ activeSession: draft, error: null }); persist(draft)
     },
     editSession: session => {
       if (get().activeSession) { set({ error: 'Lưu hoặc hủy bản nháp trước khi chỉnh sửa.' }); return }

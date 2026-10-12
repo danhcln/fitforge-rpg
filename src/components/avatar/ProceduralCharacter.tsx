@@ -64,7 +64,7 @@ export const ProceduralCharacter = memo(function ProceduralCharacter({ morph, is
   const ellipsoid = (name: string, color: string, metalness = 0.08) => <mesh key={name} ref={mesh => { if (mesh) parts.current[name] = mesh }}>
     <sphereGeometry args={[1, 24, 16]} /><meshStandardMaterial color={color} roughness={0.65} metalness={metalness} />
   </mesh>
-  const torsoColor = appearance.clothing === 'suit' ? fabric : skin
+  const torsoColor = skin
   return <group position={[0, -1.12, 0]}>
     <mesh position={[0, -0.05, 0]}><cylinderGeometry args={[0.85, 0.9, 0.1, 40]} /><meshStandardMaterial color="#090d16" roughness={0.7} metalness={0.35} /></mesh>
     <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.77, 0.82, 48]} /><meshBasicMaterial color={accent} /></mesh>
@@ -73,9 +73,9 @@ export const ProceduralCharacter = memo(function ProceduralCharacter({ morph, is
       {ellipsoid('chest', torsoColor)}{ellipsoid('abdomen', torsoColor)}{ellipsoid('hips', fabric)}{ellipsoid('belt', '#111827')}{ellipsoid('emblem', accent, 0.6)}
       {[-1, 1].flatMap(side => {
         const s = side === -1 ? 'L' : 'R'
-        return [ellipsoid(`shoulder${s}`, appearance.clothing === 'training' ? fabric : torsoColor), ellipsoid(`upperArm${s}`, torsoColor), ellipsoid(`elbow${s}`, skin),
-          ellipsoid(`forearm${s}`, appearance.clothing === 'suit' ? fabric : skin), ellipsoid(`hand${s}`, skin), ellipsoid(`thigh${s}`, fabric),
-          ellipsoid(`knee${s}`, accent), ellipsoid(`calf${s}`, appearance.clothing === 'shorts' ? skin : fabric), ellipsoid(`foot${s}`, '#111827'), ellipsoid(`pec${s}`, torsoColor)]
+        return [ellipsoid(`shoulder${s}`, skin), ellipsoid(`upperArm${s}`, torsoColor), ellipsoid(`elbow${s}`, skin),
+          ellipsoid(`forearm${s}`, skin), ellipsoid(`hand${s}`, skin), ellipsoid(`thigh${s}`, fabric),
+          ellipsoid(`knee${s}`, skin), ellipsoid(`calf${s}`, skin), ellipsoid(`foot${s}`, '#111827'), ellipsoid(`pec${s}`, torsoColor)]
       })}
       {auraEnabled && <mesh position={[0, 1.05, 0]}><cylinderGeometry args={[0.75, 0.83, 2.25, 24, 1, true]} /><meshBasicMaterial color={accent} wireframe transparent opacity={isGoalMode ? 0.1 : 0.07} /></mesh>}
     </group>

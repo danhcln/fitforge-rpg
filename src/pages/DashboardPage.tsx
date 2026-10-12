@@ -1,27 +1,25 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { useUserStore, useQuestStore, useWorkoutStore, useCharacterStore } from '@/stores'
+import { useUserStore, useWorkoutStore, useCharacterStore } from '@/stores'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Progress } from '@/components/ui/Progress'
 import { AvatarCanvas } from '@/components/avatar'
 import { PersonalRecords, ExerciseProgress } from '@/components/WorkoutHistory'
 import { BodyOverview } from '@/components/BodyComposition'
 import { useInBodyStore } from '@/stores'
 import { resolveEvolution } from '@/services/character/evolution'
+import { QuestPanel } from '@/components/RpgProgression'
+import { PlanningSummary } from '@/components/PlanningSummary'
 import {
   Dumbbell,
   ChevronRight,
-  CheckCircle2,
-  Gift,
   ArrowUpRight,
 } from 'lucide-react'
 
 export const DashboardPage: React.FC = () => {
   const { user } = useUserStore()
 
-  const { quests } = useQuestStore()
   const { sessions } = useWorkoutStore()
   const { character, setMode, goalBodies, selectedGoalId } = useCharacterStore()
 
@@ -41,7 +39,7 @@ export const DashboardPage: React.FC = () => {
                 CHIẾN BINH LEVEL {user.level}
               </Badge>
               <Badge variant="gold" size="sm">
-                CHUỖI {user.streakDays} NGÀY LIÊN TIẾP 🔥
+                CHUỖI ĐÃ GHI {user.streakDays} NGÀY · NGHỈ KHI CẦN
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
@@ -119,98 +117,8 @@ export const DashboardPage: React.FC = () => {
 
         {/* Quests and Recent Sessions (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Daily & Weekly RPG Quests */}
-          <Card className="border-slate-800 bg-slate-900/80">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-base text-teal-300">
-                  <Gift className="w-4 h-4 text-teal-400" />
-                  Nhiệm Vụ Rèn Luyện & Thưởng RPG
-                </CardTitle>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Hoàn thành mục tiêu thực tế để nhận điểm kinh nghiệm (XP) và Vàng
-                </p>
-              </div>
-              <Badge variant="cyan" size="sm">
-                {quests.filter((q) => q.isCompleted && !q.isClaimed).length} Sẵn Sàng Nhận
-              </Badge>
-            </CardHeader>
-
-            <CardContent className="space-y-3 pt-1">{!quests.length && <p className="text-slate-400 text-xs">Nhiệm vụ RPG sẽ được mở rộng ở giai đoạn tiếp theo.</p>}
-              {quests.slice(0, 4).map((quest) => {
-                const canClaim = quest.isCompleted && !quest.isClaimed
-                const isClaimed = quest.isClaimed
-
-                return (
-                  <div
-                    key={quest.id}
-                    className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
-                      isClaimed
-                        ? 'bg-slate-950/40 border-slate-800/50 opacity-60'
-                        : canClaim
-                        ? 'bg-teal-950/20 border-teal-500/40 forge-border-glow'
-                        : 'bg-slate-950/60 border-slate-800'
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-white truncate">
-                          {quest.titleVi}
-                        </span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">
-                          {quest.frequency === 'daily' ? 'Hàng Ngày' : 'Hàng Tuần'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 truncate mb-1.5">
-                        {quest.descriptionVi}
-                      </p>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 max-w-[180px]">
-                          <Progress
-                            value={quest.currentProgress}
-                            max={quest.targetProgress}
-                            variant={quest.isCompleted ? 'emerald' : 'cyan'}
-                            size="sm"
-                          />
-                        </div>
-                        <span className="text-[10px] font-mono text-slate-400">
-                          {quest.currentProgress.toLocaleString()} / {quest.targetProgress.toLocaleString()} {quest.unitVi}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right hidden sm:block">
-                        <div className="text-[11px] font-bold text-teal-400">+{quest.rewardXp} XP</div>
-                        <div className="text-[10px] font-mono text-amber-400">+{quest.rewardGold} Vàng</div>
-                      </div>
-
-                      {isClaimed ? (
-                        <div className="flex items-center gap-1 text-xs text-slate-500 px-2.5 py-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Đã nhận</span>
-                        </div>
-                      ) : canClaim ? (
-                        <Button
-                          size="sm"
-                          variant="gold"
-                          className="h-8 text-xs font-bold"
-                          disabled
-                        >
-                          Giai đoạn RPG tiếp theo
-                        </Button>
-                      ) : (
-                        <Badge variant="outline" size="sm">
-                          Đang làm
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
+          <QuestPanel />
+          <PlanningSummary />
 
           {/* Recent Workout Session Highlight */}
           <Card className="border-slate-800 bg-slate-900/80">

@@ -1,3 +1,7 @@
+# Phase 5 status — 2026-10-12
+
+Completed: persistent XP/level ledger, daily/weekly/recovery quests, real workout achievements, title/accent rewards, weekly split planning with actual completions and optional rep suggestions, and food/hydration journal with age safeguards. See [PHASE_5_REPORT.md](PHASE_5_REPORT.md) and [RPG_PLANNING.md](RPG_PLANNING.md). No later phase has started. Prior milestone descriptions below are historical where superseded.
+
 # Phase 4 status — 2026-10-12
 
 Completed: improved procedural humanoid, seven normalized morph proxies, measurement/goal sources, historical avatar comparison, persistent presets/colors/clothing/manual previews, camera controls, responsive viewport and WebGL fallback. XP and physique remain independent. See [PHASE_4_REPORT.md](PHASE_4_REPORT.md) and [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md). Phase 5 has not started. Previous updates below describe earlier implementation-time status.

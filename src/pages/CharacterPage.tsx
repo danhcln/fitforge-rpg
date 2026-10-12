@@ -7,6 +7,7 @@ import { bodyMetrics, compareMeasurements, units } from '@/services/bodyComposit
 import { mappedMorph, resolveEvolution, resolveMeasurement } from '@/services/character/evolution'
 import { BodyCompositionToAvatar } from '@/services/bodyComposition/BodyCompositionToAvatar'
 import type { CharacterAppearance } from '@/types'
+import { CosmeticRewards } from '@/components/RpgProgression'
 
 export function CharacterPage() {
   const { measurements, latestMeasurement } = useInBodyStore()
@@ -50,7 +51,7 @@ export function CharacterPage() {
           <p className="text-xs text-slate-400">Tùy chỉnh màu và trang phục được lưu riêng, không thay đổi số đo. Mục tiêu là mô phỏng giả định, không dự đoán kết quả tương lai.</p>
           <label className="text-xs text-slate-400 block">Phong cách<select aria-label="Phong cách nhân vật" className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700" value={preview.appearance.preset} onChange={e => setAppearancePreset(e.target.value as CharacterAppearance['preset'])}><option value="forge">Forge · xanh ngọc</option><option value="scout">Scout · xanh lá</option><option value="guardian">Guardian · tím</option></select></label>
           <div className="grid grid-cols-3 gap-3">{(['skinColor', 'clothingColor', 'accentColor'] as const).map(key => <label key={key} className="text-xs text-slate-400">{{ skinColor: 'Màu da', clothingColor: 'Trang phục', accentColor: 'Điểm nhấn' }[key]}<input aria-label={{ skinColor: 'Màu da', clothingColor: 'Màu trang phục', accentColor: 'Màu điểm nhấn' }[key]} type="color" value={preview.appearance[key]} onChange={e => updateAppearance({ [key]: e.target.value })} className="mt-2 block h-8 w-full bg-slate-950 rounded" /></label>)}</div>
-          <label className="text-xs text-slate-400 block">Trang phục<select aria-label="Kiểu trang phục" className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700" value={preview.appearance.clothing} onChange={e => updateAppearance({ clothing: e.target.value as CharacterAppearance['clothing'] })}><option value="training">Áo vai & quần tập</option><option value="suit">Đồ liền thân</option><option value="shorts">Quần ngắn</option></select></label>
+          <p className="text-xs text-slate-400">Diện mạo cơ bản: thân trên để trần và quần ngắn. Các lựa chọn trang phục cũ vẫn được lưu, không thay đổi số đo.</p>
           <Button size="sm" variant="outline" onClick={toggleAura}>{character.auraUnlocked ? 'Tắt hào quang' : 'Bật hào quang'}</Button>
         </CardContent></Card>
         {preview.manual && <AvatarControls morph={activeManual} onChange={updateManual} onReset={() => updateManual(isGoal ? mappedMorph(selectedGoalId ? goalBodies[selectedGoalId] ?? BodyCompositionToAvatar(null, 'goal') : BodyCompositionToAvatar(null, 'goal')) : mappedMorph(BodyCompositionToAvatar(preview.measurement)))} auraEnabled={character.auraUnlocked} onToggleAura={toggleAura} title="Bản xem thử · không sửa InBody" />}
@@ -58,5 +59,6 @@ export function CharacterPage() {
       </div>
     </div>
     <BodyTargets />
+    <CosmeticRewards />
   </div>
 }
