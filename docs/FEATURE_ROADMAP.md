@@ -1,7 +1,22 @@
+# Phase 5 status — 2026-10-12
+
+Completed: persistent XP/level ledger, daily/weekly/recovery quests, real workout achievements, title/accent rewards, weekly split planning with actual completions and optional rep suggestions, and food/hydration journal with age safeguards. See [PHASE_5_REPORT.md](PHASE_5_REPORT.md) and [RPG_PLANNING.md](RPG_PLANNING.md). No later phase has started. Prior milestone descriptions below are historical where superseded.
+
+# Phase 4 status — 2026-10-12
+
+Completed: improved procedural humanoid, seven normalized morph proxies, measurement/goal sources, historical avatar comparison, persistent presets/colors/clothing/manual previews, camera controls, responsive viewport and WebGL fallback. XP and physique remain independent. See [PHASE_4_REPORT.md](PHASE_4_REPORT.md) and [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md). Phase 5 has not started. Previous updates below describe earlier implementation-time status.
+
+# Phase 3 status — 2026-10-12
+
+Completed: local InBody CRUD/history, safe v3 migration/backups, null-safe BMI/fat/fat-free calculations, independent report-interval classifications, segmental visualization, charts, current/target integration and normalized avatar data mapping. No advanced avatar morphing, OCR, cloud integration, diagnosis or physical-change prediction is enabled. Phase 4 has not started. See [PHASE_3_REPORT.md](PHASE_3_REPORT.md) and [BODY_COMPOSITION.md](BODY_COMPOSITION.md); the original roadmap below is historical where it differs from the owner's Phase 3 scope.
+# Phase 2 Status — 2026-10-11
+
+✅ Local database, safe migrations, reactive stores, validated additive backup/restore, workout CRUD/drafts/history, four PR categories, real dashboard totals and automated tests are complete. The basic Epley engine moved into Phase 2 at the project owner's request. Phase 3 is now complete; see the status update above. See [PHASE_2_REPORT.md](PHASE_2_REPORT.md).
+
 # Lộ Trình Phát Triển Tính Năng (Feature Roadmap)
 
 Dự án: **FitForge RPG**  
-Phiên bản hiện tại: **0.1.0-scaffold**
+Phiên bản hiện tại: **0.2.0-core-workout**
 
 ---
 

@@ -1,39 +1,32 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { useUserStore, useInBodyStore, useQuestStore, useWorkoutStore, useCharacterStore } from '@/stores'
+import { useUserStore, useWorkoutStore, useCharacterStore } from '@/stores'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Progress } from '@/components/ui/Progress'
 import { AvatarCanvas } from '@/components/avatar'
+import { PersonalRecords, ExerciseProgress } from '@/components/WorkoutHistory'
+import { BodyOverview } from '@/components/BodyComposition'
+import { useInBodyStore } from '@/stores'
+import { resolveEvolution } from '@/services/character/evolution'
+import { QuestPanel } from '@/components/RpgProgression'
+import { PlanningSummary } from '@/components/PlanningSummary'
 import {
   Dumbbell,
-  Activity,
-  Flame,
-  Award,
   ChevronRight,
-  TrendingUp,
-  CheckCircle2,
-  Gift,
   ArrowUpRight,
 } from 'lucide-react'
 
 export const DashboardPage: React.FC = () => {
-  const { user, addXp, addGold } = useUserStore()
-  const { latestMeasurement } = useInBodyStore()
-  const { quests, claimQuest } = useQuestStore()
-  const { sessions } = useWorkoutStore()
-  const { character, setMode } = useCharacterStore()
+  const { user } = useUserStore()
 
-  const handleClaim = (questId: string) => {
-    const rewards = claimQuest(questId)
-    if (rewards) {
-      addXp(rewards.xp)
-      addGold(rewards.gold)
-    }
-  }
+  const { sessions } = useWorkoutStore()
+  const { character, setMode, goalBodies, selectedGoalId } = useCharacterStore()
 
   const latestSession = sessions[0]
+  const { latestMeasurement, measurements } = useInBodyStore()
+  const current = resolveEvolution({ ...character, mode: 'current' }, measurements, null, goalBodies, selectedGoalId)
+  const goal = resolveEvolution({ ...character, mode: 'goal' }, measurements, null, goalBodies, selectedGoalId)
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
@@ -46,14 +39,14 @@ export const DashboardPage: React.FC = () => {
                 CHIẾN BINH LEVEL {user.level}
               </Badge>
               <Badge variant="gold" size="sm">
-                CHUỖI {user.streakDays} NGÀY LIÊN TIẾP 🔥
+                CHUỖI ĐÃ GHI {user.streakDays} NGÀY · NGHỈ KHI CẦN
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
               Chào mừng trở lại, <span className="text-teal-400">{user.name}</span>!
             </h1>
             <p className="text-sm text-slate-300 max-w-xl">
-              Cơ thể thực tế của bạn đang tiến hóa song hành cùng nhân vật 3D RPG. Tiếp tục duy trì kỷ luật rèn luyện hôm nay!
+              Ghi lại buổi tập để tăng XP. Hình thể avatar dựa trên phiếu đo hoặc bản xem thử độc lập với Level.
             </p>
           </div>
 
@@ -74,66 +67,18 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid: 4 Core Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Weight & BMI */}
-        <Card className="p-4 border-slate-800/80 bg-slate-900/60 hover:border-teal-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span>Cân Nặng Hiện Tại</span>
-            <Activity className="w-4 h-4 text-teal-400" />
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white">
-            {latestMeasurement.weightKg} <span className="text-xs font-normal text-slate-400">kg</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-            <span>BMI: <strong className="text-slate-200">{latestMeasurement.bmi}</strong></span>
-            <span className="text-emerald-400 text-[11px] font-semibold">(-0.8kg tháng này)</span>
-          </div>
-        </Card>
-
-        {/* SMM (Skeletal Muscle Mass) */}
-        <Card className="p-4 border-slate-800/80 bg-slate-900/60 hover:border-teal-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span>Khối Lượng Cơ Xương (SMM)</span>
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-teal-400">
-            {latestMeasurement.smmKg} <span className="text-xs font-normal text-slate-400">kg</span>
-          </div>
-          <div className="mt-2 text-xs text-slate-400">
-            Mục tiêu: <strong className="text-slate-200">36.5 kg</strong> (+1.6kg còn lại)
-          </div>
-        </Card>
-
-        {/* PBF (Percent Body Fat) */}
-        <Card className="p-4 border-slate-800/80 bg-slate-900/60 hover:border-teal-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span>Tỷ Lệ Mỡ Cơ Thể (PBF)</span>
-            <Award className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-amber-400">
-            {latestMeasurement.pbfPercent} <span className="text-xs font-normal text-slate-400">%</span>
-          </div>
-          <div className="mt-2 text-xs text-slate-400">
-            Phân loại: <strong className="text-emerald-300">Thể Hình Nét (Athletic)</strong>
-          </div>
-        </Card>
-
-        {/* InBody Score */}
-        <Card className="p-4 border-slate-800/80 bg-slate-900/60 hover:border-teal-500/40 transition-colors">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span>Điểm Thể Trạng InBody</span>
-            <Flame className="w-4 h-4 text-purple-400" />
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-purple-400">
-            {latestMeasurement.inBodyScore} <span className="text-xs font-normal text-slate-400">/100</span>
-          </div>
-          <div className="mt-2 text-xs text-slate-400">
-            Cập nhật: <strong className="text-slate-200">{latestMeasurement.date}</strong>
-          </div>
-        </Card>
+        {[
+          ['Buổi tập hoàn thành', sessions.length],
+          ['Tổng volume (kg)', sessions.reduce((n, s) => n + s.totalVolumeKg, 0).toLocaleString()],
+          ['Hiệp hoàn thành', sessions.reduce((n, s) => n + s.exercises.reduce((a, ex) => a + ex.sets.filter(row => row.completed).length, 0), 0)],
+          ['Thời gian tập (phút)', sessions.reduce((n, s) => n + s.durationMinutes, 0)],
+        ].map(([label, value]) => <Card key={label} className="p-4 border-slate-800/80 bg-slate-900/60 hover:border-teal-500/40 transition-colors">
+          <p className="text-xs text-slate-400 mb-2">{label}</p><p className="text-2xl sm:text-3xl font-black text-teal-400">{value}</p>
+        </Card>)}
       </div>
-
+      {!sessions.length && <p className="text-slate-400 text-sm">Chưa có tiến trình thực tế. Lưu buổi tập đầu tiên để bắt đầu.</p>}
+      <BodyOverview measurement={latestMeasurement} previous={measurements.at(-2)} />
       {/* Main Content Split: 3D Preview (Left) vs Quests & Recent Workouts (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* 3D Avatar Mini Viewport Card (5 Cols) */}
@@ -153,8 +98,10 @@ export const DashboardPage: React.FC = () => {
 
             <div className="mt-3">
               <AvatarCanvas
-                currentMorph={character.currentBody}
-                goalMorph={character.goalBody}
+                currentMorph={current.morph}
+                goalMorph={goal.morph}
+                appearance={current.appearance}
+                label={character.visualSource === 'manual' ? 'Bản xem thử thủ công' : character.mode === 'goal' ? 'Mục tiêu · mô phỏng giả định' : `Phiếu hiện tại · ${latestMeasurement?.date ?? 'chưa có số đo'}`}
                 mode={character.mode}
                 onModeChange={setMode}
                 height="380px"
@@ -170,98 +117,8 @@ export const DashboardPage: React.FC = () => {
 
         {/* Quests and Recent Sessions (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Daily & Weekly RPG Quests */}
-          <Card className="border-slate-800 bg-slate-900/80">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-base text-teal-300">
-                  <Gift className="w-4 h-4 text-teal-400" />
-                  Nhiệm Vụ Rèn Luyện & Thưởng RPG
-                </CardTitle>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Hoàn thành mục tiêu thực tế để nhận điểm kinh nghiệm (XP) và Vàng
-                </p>
-              </div>
-              <Badge variant="cyan" size="sm">
-                {quests.filter((q) => q.isCompleted && !q.isClaimed).length} Sẵn Sàng Nhận
-              </Badge>
-            </CardHeader>
-
-            <CardContent className="space-y-3 pt-1">
-              {quests.slice(0, 4).map((quest) => {
-                const canClaim = quest.isCompleted && !quest.isClaimed
-                const isClaimed = quest.isClaimed
-
-                return (
-                  <div
-                    key={quest.id}
-                    className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
-                      isClaimed
-                        ? 'bg-slate-950/40 border-slate-800/50 opacity-60'
-                        : canClaim
-                        ? 'bg-teal-950/20 border-teal-500/40 forge-border-glow'
-                        : 'bg-slate-950/60 border-slate-800'
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-white truncate">
-                          {quest.titleVi}
-                        </span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">
-                          {quest.frequency === 'daily' ? 'Hàng Ngày' : 'Hàng Tuần'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 truncate mb-1.5">
-                        {quest.descriptionVi}
-                      </p>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 max-w-[180px]">
-                          <Progress
-                            value={quest.currentProgress}
-                            max={quest.targetProgress}
-                            variant={quest.isCompleted ? 'emerald' : 'cyan'}
-                            size="sm"
-                          />
-                        </div>
-                        <span className="text-[10px] font-mono text-slate-400">
-                          {quest.currentProgress.toLocaleString()} / {quest.targetProgress.toLocaleString()} {quest.unitVi}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right hidden sm:block">
-                        <div className="text-[11px] font-bold text-teal-400">+{quest.rewardXp} XP</div>
-                        <div className="text-[10px] font-mono text-amber-400">+{quest.rewardGold} Vàng</div>
-                      </div>
-
-                      {isClaimed ? (
-                        <div className="flex items-center gap-1 text-xs text-slate-500 px-2.5 py-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Đã nhận</span>
-                        </div>
-                      ) : canClaim ? (
-                        <Button
-                          size="sm"
-                          variant="gold"
-                          className="h-8 text-xs font-bold"
-                          onClick={() => handleClaim(quest.id)}
-                        >
-                          Nhận Thưởng
-                        </Button>
-                      ) : (
-                        <Badge variant="outline" size="sm">
-                          Đang làm
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
+          <QuestPanel />
+          <PlanningSummary />
 
           {/* Recent Workout Session Highlight */}
           <Card className="border-slate-800 bg-slate-900/80">
@@ -324,6 +181,8 @@ export const DashboardPage: React.FC = () => {
           </Card>
         </div>
       </div>
+      <ExerciseProgress />
+      <PersonalRecords />
     </div>
   )
 }

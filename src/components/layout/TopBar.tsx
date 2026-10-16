@@ -49,7 +49,7 @@ export const TopBar: React.FC = () => {
           {/* Streak Flame */}
           <div
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-950/40 border border-orange-500/30 text-orange-400 shadow-sm"
-            title="Chuỗi ngày rèn luyện liên tục"
+            title="Chuỗi ngày đã ghi nhận · không bắt buộc tập liên tiếp"
           >
             <Flame className="w-4 h-4 fill-orange-500 text-orange-500 animate-pulse" />
             <span>{user.streakDays} Ngày</span>

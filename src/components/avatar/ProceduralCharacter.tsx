@@ -1,227 +1,83 @@
-import React, { useRef } from 'react'
+import { memo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import * as THREE from 'three'
-import type { BodyMorphParameters } from '@/types'
+import type { Group, Mesh } from 'three'
+import type { BodyMorphParameters, CharacterAppearance } from '@/types'
+import { appearancePresets, bounded, clampMorph, smoothMorph } from '@/services/character/evolution'
 
 interface ProceduralCharacterProps {
   morph: BodyMorphParameters
   isGoalMode?: boolean
   auraEnabled?: boolean
+  appearance?: CharacterAppearance
 }
-
-export const ProceduralCharacter: React.FC<ProceduralCharacterProps> = ({
-  morph,
-  isGoalMode = false,
-  auraEnabled = true,
-}) => {
-  const groupRef = useRef<THREE.Group>(null)
-  const chestRef = useRef<THREE.Mesh>(null)
-
-  // Subtle breathing idle animation
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime()
-    if (chestRef.current) {
-      chestRef.current.scale.z = (1 + Math.sin(t * 1.5) * 0.03) * (morph.chestWidth || 1)
-    }
-    if (groupRef.current) {
-      groupRef.current.position.y = Math.sin(t * 1.2) * 0.02
+/** Fixed smooth geometries: morphing updates transforms, never rebuilds geometry per frame. */
+export const ProceduralCharacter = memo(function ProceduralCharacter({ morph, isGoalMode = false, auraEnabled = false, appearance = appearancePresets.forge }: ProceduralCharacterProps) {
+  const body = useRef<Group>(null)
+  const parts = useRef<Record<string, Mesh>>({})
+  const current = useRef(clampMorph(morph))
+  const target = clampMorph(morph)
+  const skin = appearance.skinColor
+  const fabric = appearance.clothingColor
+  const accent = appearance.accentColor
+  const setPart = (name: string, x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
+    const mesh = parts.current[name]
+    if (mesh) { mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz) }
+  }
+  useFrame((state, delta) => {
+    const m = current.current = smoothMorph(current.current, target, delta)
+    const volume = 0.85 + m.overallVolume! * 0.3
+    const upper = 0.82 + (m.upperBodyMuscle! + m.muscleMorph) * 0.16
+    const lower = 0.82 + (m.lowerBodyMuscle! + m.muscleMorph) * 0.16
+    const fat = m.fatMorph
+    // Narrower render bounds inside the legacy input range prevent intersecting limbs and detached shoulders.
+    const chest = bounded(m.chestWidth, 0.8, 1.3, 1) * upper * volume
+    const waist = bounded(m.waistWidth, 0.8, 1.25, 1) * volume * (0.93 + fat * 0.18)
+    const arm = bounded(m.armThickness, 0.8, 1.3, 1) * upper * (0.9 + m.armProportion! * 0.2)
+    const leg = bounded(m.legThickness, 0.8, 1.3, 1) * lower * (0.9 + m.legProportion! * 0.2)
+    const torso = 0.94 + m.trunkProportion! * 0.12
+    const shoulder = chest * 0.255 + 0.08 * bounded(m.shoulderWidth, 0.85, 1.3, 1)
+    const breath = 1 + Math.sin(state.clock.elapsedTime * 1.5) * 0.007
+    if (body.current) body.current.scale.setScalar(bounded(m.heightCm / 175, 0.8, 1.25, 1))
+    setPart('head', 0, 1.94 + (torso - 1) * 0.4, 0, 0.145, 0.195, 0.15)
+    setPart('visor', 0, 1.97 + (torso - 1) * 0.4, 0.133, 0.113, 0.028, 0.03)
+    setPart('neck', 0, 1.73, 0, 0.085 * upper, 0.13, 0.085 * upper)
+    setPart('chest', 0, 1.49, 0, 0.29 * chest, 0.31 * torso, (0.15 + fat * 0.035) * breath)
+    setPart('abdomen', 0, 1.22, 0.012, 0.235 * waist, 0.27 * torso, 0.145 + fat * 0.055)
+    setPart('hips', 0, 0.99, 0, 0.235 * waist, 0.16, 0.16 + fat * 0.025)
+    setPart('belt', 0, 1.045, 0, 0.241 * waist, 0.035, 0.164 + fat * 0.025)
+    setPart('emblem', 0, 1.52, 0.15 + fat * 0.035, 0.046, 0.046, 0.016)
+    const stance = 0.125 + leg * 0.022
+    for (const side of [-1, 1]) {
+      const suffix = side === -1 ? 'L' : 'R'
+      setPart(`shoulder${suffix}`, side * shoulder, 1.63, 0, 0.112 * arm, 0.123 * arm, 0.12 * arm)
+      setPart(`upperArm${suffix}`, side * (shoulder + 0.035), 1.39, 0, 0.093 * arm, 0.22, 0.095 * arm)
+      setPart(`elbow${suffix}`, side * (shoulder + 0.049), 1.19, 0.01, 0.072 * arm, 0.075, 0.078 * arm)
+      setPart(`forearm${suffix}`, side * (shoulder + 0.059), 1.035, 0.025, 0.073 * arm, 0.185, 0.081 * arm)
+      setPart(`hand${suffix}`, side * (shoulder + 0.062), 0.845, 0.044, 0.065, 0.095, 0.067)
+      setPart(`thigh${suffix}`, side * stance, 0.76, 0, 0.13 * leg, 0.275, 0.135 * leg)
+      setPart(`knee${suffix}`, side * stance, 0.5, 0.025, 0.091 * leg, 0.085, 0.1 * leg)
+      setPart(`calf${suffix}`, side * stance, 0.285, 0, 0.088 * leg, 0.22, 0.096 * leg)
+      setPart(`foot${suffix}`, side * stance, 0.055, 0.075, 0.092 * leg, 0.055, 0.165)
+      setPart(`pec${suffix}`, side * 0.126 * chest, 1.52, 0.145 + fat * 0.035, 0.12 * chest, 0.09, 0.015 + m.definition * (1 - fat) * 0.025)
     }
   })
-
-  // Color theme: Teal Cyan for Current, Radiant Amber/Gold for Goal
-  const accentColor = isGoalMode ? '#f59e0b' : '#14b8a6'
-  const skinColor = isGoalMode ? '#1e293b' : '#0f172a'
-  const gearColor = isGoalMode ? '#334155' : '#1e293b'
-
-  // Morph scaling factors derived from parameters
-  const muscleFactor = 1 + morph.muscleMorph * 0.35
-  const fatFactor = 1 + morph.fatMorph * 0.35
-  const waistFactor = morph.waistWidth * (1 + morph.fatMorph * 0.25 - morph.muscleMorph * 0.15)
-  const chestFactor = morph.chestWidth * muscleFactor
-  const shoulderFactor = morph.shoulderWidth * muscleFactor
-  const armFactor = morph.armThickness * muscleFactor
-  const legFactor = morph.legThickness * (1 + morph.muscleMorph * 0.2)
-
-  return (
-    <group ref={groupRef} position={[0, -1.1, 0]}>
-      {/* --- PODIUM / PEDESTAL --- */}
-      <mesh position={[0, -0.05, 0]}>
-        <cylinderGeometry args={[1.2, 1.3, 0.1, 32]} />
-        <meshStandardMaterial color="#090d16" roughness={0.6} metalness={0.4} />
-      </mesh>
-      {/* Podium Neon Ring */}
-      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.05, 1.15, 32]} />
-        <meshBasicMaterial color={accentColor} />
-      </mesh>
-
-      {/* --- HEAD & NECK --- */}
-      {/* Head */}
-      <mesh position={[0, 2.05, 0]}>
-        <sphereGeometry args={[0.18, 24, 24]} />
-        <meshStandardMaterial color={skinColor} roughness={0.3} metalness={0.2} />
-      </mesh>
-      {/* Visor / Eye Glow */}
-      <mesh position={[0, 2.07, 0.15]}>
-        <boxGeometry args={[0.22, 0.05, 0.08]} />
-        <meshStandardMaterial
-          color={accentColor}
-          emissive={accentColor}
-          emissiveIntensity={0.8}
-          roughness={0.1}
-        />
-      </mesh>
-      {/* Neck */}
-      <mesh position={[0, 1.86, 0]}>
-        <cylinderGeometry args={[0.08 * muscleFactor, 0.1 * muscleFactor, 0.15, 16]} />
-        <meshStandardMaterial color={skinColor} roughness={0.4} />
-      </mesh>
-
-      {/* --- TORSO & CHEST --- */}
-      {/* Chest / Upper Torso */}
-      <mesh
-        ref={chestRef}
-        position={[0, 1.62, 0]}
-        scale={[chestFactor, 1, 1]}
-      >
-        <boxGeometry args={[0.5, 0.36, 0.28]} />
-        <meshStandardMaterial color={skinColor} roughness={0.35} metalness={0.3} />
-      </mesh>
-      {/* Core Chest Emblem */}
-      <mesh position={[0, 1.65, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, 0.03, 6]} />
-        <meshStandardMaterial
-          color={accentColor}
-          emissive={accentColor}
-          emissiveIntensity={1.2}
-        />
-      </mesh>
-
-      {/* Abdomen / Waist */}
-      <mesh position={[0, 1.32, 0]} scale={[waistFactor, 1, fatFactor]}>
-        <boxGeometry args={[0.4, 0.28, 0.24]} />
-        <meshStandardMaterial color={skinColor} roughness={0.4} metalness={0.25} />
-      </mesh>
-
-      {/* Pelvis / Hips */}
-      <mesh position={[0, 1.1, 0]} scale={[waistFactor * 1.05, 1, 1]}>
-        <boxGeometry args={[0.42, 0.2, 0.25]} />
-        <meshStandardMaterial color={gearColor} roughness={0.5} />
-      </mesh>
-
-      {/* Weightlifting Belt */}
-      <mesh position={[0, 1.18, 0]} scale={[waistFactor * 1.08, 1, fatFactor * 1.08]}>
-        <boxGeometry args={[0.44, 0.1, 0.27]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.6} metalness={0.5} />
-      </mesh>
-      {/* Belt Buckle */}
-      <mesh position={[0, 1.18, 0.15]}>
-        <boxGeometry args={[0.08, 0.08, 0.02]} />
-        <meshStandardMaterial color={accentColor} metalness={0.8} roughness={0.2} />
-      </mesh>
-
-      {/* --- SHOULDERS & ARMS --- */}
-      {/* Left Shoulder */}
-      <mesh position={[-0.34 * shoulderFactor, 1.7, 0]} scale={[shoulderFactor, shoulderFactor, shoulderFactor]}>
-        <sphereGeometry args={[0.13, 16, 16]} />
-        <meshStandardMaterial color={gearColor} roughness={0.4} metalness={0.3} />
-      </mesh>
-      {/* Right Shoulder */}
-      <mesh position={[0.34 * shoulderFactor, 1.7, 0]} scale={[shoulderFactor, shoulderFactor, shoulderFactor]}>
-        <sphereGeometry args={[0.13, 16, 16]} />
-        <meshStandardMaterial color={gearColor} roughness={0.4} metalness={0.3} />
-      </mesh>
-
-      {/* Left Upper Arm */}
-      <mesh position={[-0.38 * shoulderFactor, 1.48, 0]} scale={[armFactor, 1, armFactor]}>
-        <cylinderGeometry args={[0.09, 0.08, 0.26, 16]} />
-        <meshStandardMaterial color={skinColor} roughness={0.35} />
-      </mesh>
-      {/* Right Upper Arm */}
-      <mesh position={[0.38 * shoulderFactor, 1.48, 0]} scale={[armFactor, 1, armFactor]}>
-        <cylinderGeometry args={[0.09, 0.08, 0.26, 16]} />
-        <meshStandardMaterial color={skinColor} roughness={0.35} />
-      </mesh>
-
-      {/* Left Forearm */}
-      <mesh position={[-0.4 * shoulderFactor, 1.2, 0.05]} scale={[armFactor, 1, armFactor]}>
-        <cylinderGeometry args={[0.08, 0.065, 0.28, 16]} />
-        <meshStandardMaterial color={skinColor} roughness={0.4} />
-      </mesh>
-      {/* Right Forearm */}
-      <mesh position={[0.4 * shoulderFactor, 1.2, 0.05]} scale={[armFactor, 1, armFactor]}>
-        <cylinderGeometry args={[0.08, 0.065, 0.28, 16]} />
-        <meshStandardMaterial color={skinColor} roughness={0.4} />
-      </mesh>
-
-      {/* Left Hand / Wrist Wrap */}
-      <mesh position={[-0.4 * shoulderFactor, 0.98, 0.08]}>
-        <sphereGeometry args={[0.07, 12, 12]} />
-        <meshStandardMaterial color={accentColor} roughness={0.5} />
-      </mesh>
-      {/* Right Hand / Wrist Wrap */}
-      <mesh position={[0.4 * shoulderFactor, 0.98, 0.08]}>
-        <sphereGeometry args={[0.07, 12, 12]} />
-        <meshStandardMaterial color={accentColor} roughness={0.5} />
-      </mesh>
-
-      {/* --- LEGS & FEET --- */}
-      {/* Left Thigh */}
-      <mesh position={[-0.14, 0.82, 0]} scale={[legFactor, 1, legFactor]}>
-        <cylinderGeometry args={[0.13, 0.1, 0.38, 16]} />
-        <meshStandardMaterial color={gearColor} roughness={0.5} />
-      </mesh>
-      {/* Right Thigh */}
-      <mesh position={[0.14, 0.82, 0]} scale={[legFactor, 1, legFactor]}>
-        <cylinderGeometry args={[0.13, 0.1, 0.38, 16]} />
-        <meshStandardMaterial color={gearColor} roughness={0.5} />
-      </mesh>
-
-      {/* Knee Sleeves */}
-      <mesh position={[-0.14, 0.58, 0]} scale={[legFactor * 1.05, 1, legFactor * 1.05]}>
-        <cylinderGeometry args={[0.105, 0.095, 0.14, 16]} />
-        <meshStandardMaterial color={accentColor} roughness={0.6} />
-      </mesh>
-      <mesh position={[0.14, 0.58, 0]} scale={[legFactor * 1.05, 1, legFactor * 1.05]}>
-        <cylinderGeometry args={[0.105, 0.095, 0.14, 16]} />
-        <meshStandardMaterial color={accentColor} roughness={0.6} />
-      </mesh>
-
-      {/* Left Calf / Shin */}
-      <mesh position={[-0.14, 0.32, 0]} scale={[legFactor, 1, legFactor]}>
-        <cylinderGeometry args={[0.095, 0.075, 0.38, 16]} />
-        <meshStandardMaterial color={skinColor} roughness={0.4} />
-      </mesh>
-      {/* Right Calf / Shin */}
-      <mesh position={[0.14, 0.32, 0]} scale={[legFactor, 1, legFactor]}>
-        <cylinderGeometry args={[0.095, 0.075, 0.38, 16]} />
-        <meshStandardMaterial color={skinColor} roughness={0.4} />
-      </mesh>
-
-      {/* Left Foot */}
-      <mesh position={[-0.14, 0.06, 0.06]}>
-        <boxGeometry args={[0.14, 0.1, 0.26]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.6} />
-      </mesh>
-      {/* Right Foot */}
-      <mesh position={[0.14, 0.06, 0.06]}>
-        <boxGeometry args={[0.14, 0.1, 0.26]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.6} />
-      </mesh>
-
-      {/* --- AURA EFFECT --- */}
-      {auraEnabled && (
-        <mesh position={[0, 1.1, 0]}>
-          <cylinderGeometry args={[0.85, 0.95, 2.4, 24, 1, true]} />
-          <meshBasicMaterial
-            color={accentColor}
-            wireframe
-            transparent
-            opacity={0.12}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
+  const ellipsoid = (name: string, color: string, metalness = 0.08) => <mesh key={name} ref={mesh => { if (mesh) parts.current[name] = mesh }}>
+    <sphereGeometry args={[1, 24, 16]} /><meshStandardMaterial color={color} roughness={0.65} metalness={metalness} />
+  </mesh>
+  const torsoColor = skin
+  return <group position={[0, -1.12, 0]}>
+    <mesh position={[0, -0.05, 0]}><cylinderGeometry args={[0.85, 0.9, 0.1, 40]} /><meshStandardMaterial color="#090d16" roughness={0.7} metalness={0.35} /></mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.77, 0.82, 48]} /><meshBasicMaterial color={accent} /></mesh>
+    <group ref={body}>
+      {ellipsoid('head', skin)}{ellipsoid('visor', accent, 0.4)}{ellipsoid('neck', torsoColor)}
+      {ellipsoid('chest', torsoColor)}{ellipsoid('abdomen', torsoColor)}{ellipsoid('hips', fabric)}{ellipsoid('belt', '#111827')}{ellipsoid('emblem', accent, 0.6)}
+      {[-1, 1].flatMap(side => {
+        const s = side === -1 ? 'L' : 'R'
+        return [ellipsoid(`shoulder${s}`, skin), ellipsoid(`upperArm${s}`, torsoColor), ellipsoid(`elbow${s}`, skin),
+          ellipsoid(`forearm${s}`, skin), ellipsoid(`hand${s}`, skin), ellipsoid(`thigh${s}`, fabric),
+          ellipsoid(`knee${s}`, skin), ellipsoid(`calf${s}`, skin), ellipsoid(`foot${s}`, '#111827'), ellipsoid(`pec${s}`, torsoColor)]
+      })}
+      {auraEnabled && <mesh position={[0, 1.05, 0]}><cylinderGeometry args={[0.75, 0.83, 2.25, 24, 1, true]} /><meshBasicMaterial color={accent} wireframe transparent opacity={isGoalMode ? 0.1 : 0.07} /></mesh>}
     </group>
-  )
-}
+  </group>
+})

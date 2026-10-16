@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
-import { useWorkoutStore, useUserStore } from '@/stores'
+import React, { useEffect, useState } from 'react'
+import { useWorkoutStore } from '@/stores'
+import { WorkoutHistory } from '@/components/WorkoutHistory'
 import type { MuscleGroup, Exercise } from '@/types'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -25,10 +26,10 @@ const muscleGroups: ('Tất cả' | MuscleGroup)[] = [
   'Vai',
   'Tay',
   'Bụng',
+  'Toàn thân',
 ]
 
 export const WorkoutPage: React.FC = () => {
-  const { addXp } = useUserStore()
   const {
     exercises,
     activeSession,
@@ -38,6 +39,7 @@ export const WorkoutPage: React.FC = () => {
     toggleSetCompleted,
     finishSession,
     cancelSession,
+    updateSet, deleteSet, removeExercise, updateSession, error, pendingWrites,
   } = useWorkoutStore()
 
   const [selectedMuscle, setSelectedMuscle] = useState<'Tất cả' | MuscleGroup>('Tất cả')
@@ -46,6 +48,16 @@ export const WorkoutPage: React.FC = () => {
   const [isStartModalOpen, setIsStartModalOpen] = useState(false)
   const [newSessionName, setNewSessionName] = useState('Buổi Tập Nâng Cao (Push Focus)')
   const [newSessionSplit, setNewSessionSplit] = useState('Ngực - Vai - Tay sau')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (useWorkoutStore.getState().pendingWrites > 0 || useWorkoutStore.getState().error) event.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [])
 
   const filteredExercises = exercises.filter((ex) => {
     const matchesMuscle = selectedMuscle === 'Tất cả' || ex.muscleGroup === selectedMuscle
@@ -57,19 +69,21 @@ export const WorkoutPage: React.FC = () => {
 
   const handleStartWorkout = () => {
     startSession(newSessionName, newSessionSplit)
-    setIsStartModalOpen(false)
+    if (useWorkoutStore.getState().activeSession) setIsStartModalOpen(false)
   }
 
-  const handleFinish = () => {
-    const finished = finishSession()
-    if (finished) {
-      addXp(finished.xpEarned)
-      alert(`🎉 Hoàn thành buổi tập! Bạn nhận được +${finished.xpEarned} XP! Tổng volume: ${finished.totalVolumeKg.toLocaleString()} kg`)
-    }
+  const handleFinish = async () => {
+    setSaving(true)
+    try {
+      const finished = await finishSession()
+      if (finished) setMessage(`Đã lưu buổi tập: ${finished.totalVolumeKg.toLocaleString()} kg volume · ${finished.xpEarned} XP`)
+    } catch (err) { setMessage(String(err)) }
+    finally { setSaving(false) }
   }
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
+      {(error || message) && <p role="status" className="p-3 rounded-xl border border-teal-500/40 text-teal-200">{error || message}</p>}
       {/* Top Banner / Workout Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
@@ -84,7 +98,7 @@ export const WorkoutPage: React.FC = () => {
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Ghi nhận từng hiệp tập, trọng lượng và số lần lặp thực tế để tích lũy EXP và tăng cơ bắp.
+            Ghi nhận hiệp tập thực tế để tích lũy XP. XP không thay đổi hình thể avatar; ưu tiên kỹ thuật và phục hồi.
           </p>
         </div>
 
@@ -103,7 +117,8 @@ export const WorkoutPage: React.FC = () => {
               size="md"
               variant="outline"
               className="text-rose-400 border-rose-500/40 hover:bg-rose-950/30"
-              onClick={cancelSession}
+              disabled={saving}
+              onClick={() => setConfirmCancel(true)}
             >
               Hủy
             </Button>
@@ -112,6 +127,7 @@ export const WorkoutPage: React.FC = () => {
               variant="primary"
               className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
               onClick={handleFinish}
+              disabled={saving}
             >
               <CheckCircle2 className="w-4 h-4 mr-1.5" />
               Hoàn Thành Buổi Tập
@@ -148,6 +164,14 @@ export const WorkoutPage: React.FC = () => {
           </CardHeader>
 
           <CardContent className="space-y-6 pt-4">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Input label="Tên buổi tập" value={activeSession.name} onChange={e => updateSession({ name: e.target.value })} />
+              <Input label="Ngày tập" type="date" value={activeSession.date} onChange={e => updateSession({ date: e.target.value })} />
+              <Input label="Nhóm cơ" value={activeSession.splitType} onChange={e => updateSession({ splitType: e.target.value })} />
+              <Input label="Ghi chú" value={activeSession.notes ?? ''} onChange={e => updateSession({ notes: e.target.value })} />
+              {activeSession.editOf && <Input label="Thời lượng (phút)" type="number" min="0" value={activeSession.durationMinutes} onChange={e => updateSession({ durationMinutes: Number(e.target.value) })} />}
+            </div>
+            <p role="status" className="text-xs text-slate-400">{pendingWrites ? 'Đang lưu bản nháp…' : error ? 'Bản nháp chưa lưu. Kiểm tra dữ liệu nhập.' : 'Bản nháp đã lưu trên thiết bị.'} Volume chỉ tính hiệp hoàn thành.</p>
             {activeSession.exercises.length === 0 ? (
               <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/50">
                 <Dumbbell className="w-10 h-10 text-slate-600 mx-auto mb-2" />
@@ -172,10 +196,11 @@ export const WorkoutPage: React.FC = () => {
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs border-slate-700"
-                      onClick={() => addSetToExercise(item.exerciseId, 60, 10)}
+                      onClick={() => addSetToExercise(item.exerciseId, item.sets.at(-1)?.weightKg ?? 0, item.sets.at(-1)?.reps ?? 1)}
                     >
                       <Plus className="w-3.5 h-3.5 mr-1" /> Thêm Hiệp
                     </Button>
+                    <Button size="sm" variant="ghost" onClick={() => removeExercise(item.exerciseId)}>Xóa bài</Button>
                   </div>
 
                   {/* Sets Table */}
@@ -199,14 +224,10 @@ export const WorkoutPage: React.FC = () => {
                           >
                             <td className="py-2.5 px-2 font-bold font-mono">#{set.setNumber}</td>
                             <td className="py-2.5 px-2">
-                              <span className="font-mono text-sm font-bold text-white">
-                                {set.weightKg} kg
-                              </span>
+                              <input aria-label={`${item.exerciseName} hiệp ${set.setNumber} kg`} className="w-24 bg-slate-900 border border-slate-700 rounded-lg p-2" type="number" min="0" max="2000" step="0.5" value={Number.isNaN(set.weightKg) ? '' : set.weightKg} onChange={e => updateSet(item.exerciseId, set.id, { weightKg: e.target.value === '' ? NaN : Number(e.target.value) })} />
                             </td>
                             <td className="py-2.5 px-2">
-                              <span className="font-mono text-sm font-bold text-white">
-                                {set.reps} reps
-                              </span>
+                              <input aria-label={`${item.exerciseName} hiệp ${set.setNumber} reps`} className="w-20 bg-slate-900 border border-slate-700 rounded-lg p-2" type="number" min="1" max="1000" step="1" value={Number.isNaN(set.reps) ? '' : set.reps} onChange={e => updateSet(item.exerciseId, set.id, { reps: e.target.value === '' ? NaN : Number(e.target.value) })} />
                             </td>
                             <td className="py-2.5 px-2 text-center">
                               <button
@@ -221,6 +242,7 @@ export const WorkoutPage: React.FC = () => {
                               >
                                 <CheckCircle2 className="w-4 h-4" />
                               </button>
+                              <Button size="sm" variant="ghost" onClick={() => deleteSet(item.exerciseId, set.id)}>Xóa</Button>
                             </td>
                           </tr>
                         ))}
@@ -329,6 +351,13 @@ export const WorkoutPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      <WorkoutHistory />
+      <Modal isOpen={confirmCancel} onClose={() => setConfirmCancel(false)} title="Hủy bản nháp?">
+        <p className="text-sm text-slate-300">Bản nháp sẽ bị xóa. Buổi tập gốc đã lưu được giữ nguyên khi hủy chỉnh sửa.</p>
+        <div className="flex gap-2 mt-4"><Button variant="outline" onClick={() => setConfirmCancel(false)}>Tiếp tục tập</Button>
+          <Button onClick={async () => { try { await cancelSession(); setConfirmCancel(false) } catch (err) { setMessage(String(err)) } }}>Hủy bản nháp</Button></div>
+      </Modal>
 
       {/* MODAL: Start New Workout */}
       <Modal

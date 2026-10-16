@@ -1,3 +1,18 @@
+# Phase 5 implementation update — 2026-10-12
+
+Phase 5 is complete on `feature/phase-5-rpg-planning`, based on Phase 4 commit 81d4fda now present on local main. Read [PHASE_5_REPORT.md](PHASE_5_REPORT.md) and [RPG_PLANNING.md](RPG_PLANNING.md) before further work. Preserve ledger idempotency, additive restore, age safeguards and strict reward/physique separation. Do not regenerate restrictive nutrition targets or introduce complex clothing without a new authorized scope. No subsequent phase, push or merge was performed. Earlier notes below describe prior implementation-time status.
+
+# Phase 4 implementation update — 2026-10-12
+
+Phase 4 is complete on `feature/phase-4-character-evolution`. Read [PHASE_4_REPORT.md](PHASE_4_REPORT.md) and [CHARACTER_EVOLUTION.md](CHARACTER_EVOLUTION.md) before further work. Preserve measured/manual/appearance ownership and XP independence. Historical selections are transient and never modify measurement records. No Phase 5 work, push or merge was performed. At audit, main still contained Phase 2; this branch continues from completed Phase 3 commit 82258e1. Earlier handoff notes below describe prior phase status.
+
+# Phase 3 implementation update — 2026-10-12
+
+Body measurement CRUD, nullable inputs, calculation/provenance, reference classifications, charts, comparisons, target integration and the bounded `BodyCompositionToAvatar` v1 interface are complete. See [BODY_COMPOSITION.md](BODY_COMPOSITION.md) and [PHASE_3_REPORT.md](PHASE_3_REPORT.md). Schema/backup version is 3; v1/v2 backups and original readings remain supported. Advanced measured avatar morphing is deferred to Phase 4; manual customization is independent. The historical fixed SMM/PBF morph example below is superseded by the documented artistic mapping and must not be treated as a universal body classification or prediction.
+# Phase 2 Implementation Update — 2026-10-11
+
+Phase 2 is implemented. See [PHASE_2_REPORT.md](PHASE_2_REPORT.md) and sections 6–9 of [ARCHITECTURE.md](ARCHITECTURE.md) for the current contracts. The scaffold handoff below is historical; mock seeding and destructive reset are no longer supported. InBody morphing, advanced analytics, dynamic RPG mechanics, rest timer and PWA remain future work.
+
 # Tài Liệu Bàn Giao Kỹ Thuật (Handoff to OpenAI Codex)
 
 > **Dành cho:** OpenAI Codex / Kỹ sư triển khai logic nghiệp vụ  
@@ -52,9 +67,9 @@ Tất cả các store đều nằm tại `src/stores/`:
 - Tệp định nghĩa: `src/services/db/db.ts`
 - Thể hiện: `import { db } from '@/services/db'`
 - Phương thức có sẵn:
-  - `db.seedInitialData()`: Tự động khởi tạo dữ liệu mẫu nếu DB trống.
+  - `db.seedInitialData()`: Khởi tạo hồ sơ trung tính và bài tập còn thiếu; không ghi đè dữ liệu.
   - `db.exportFullBackup()`: Trích xuất toàn bộ dữ liệu ra JSON để tải về.
-  - `db.resetToDemoState()`: Xóa sạch và tái nạp dữ liệu mẫu ban đầu.
+  - `db.importBackup(unknown)`: Kiểm tra và bổ sung bản sao lưu; giữ nguyên các ID đã tồn tại.
 
 ---
 

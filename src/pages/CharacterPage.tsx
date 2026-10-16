@@ -1,227 +1,453 @@
-import React, { useState } from 'react'
-import { useCharacterStore, useInBodyStore } from '@/stores'
-import { AvatarCanvas, AvatarControls } from '@/components/avatar'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { User, Shield, Sparkles, Info, Check } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { useCharacterStore, useInBodyStore, useWorkoutStore, useUserStore } from '@/stores'
+import {
+  AvatarCanvas,
+  AvatarControls,
+  CharacterViewer,
+  AvatarCustomizationPanel,
+} from '@/components/avatar'
+import type { MorphTargetInfo } from '@/services/character/avatarMorphTypes'
+import { loadAvatarMorphConfig } from '@/services/character/avatarStorage'
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
+import { BodyTargets } from '@/components/BodyComposition'
+import { formatBodyValue, mappingInputLabels, metricLabels } from '@/services/bodyComposition/presentation'
+import { bodyMetrics, compareMeasurements, units } from '@/services/bodyComposition/calculations'
+import { mappedMorph, resolveEvolution, resolveMeasurement } from '@/services/character/evolution'
+import { BodyCompositionToAvatar } from '@/services/bodyComposition/BodyCompositionToAvatar'
+import type { CharacterAppearance } from '@/types'
+import { CosmeticRewards } from '@/components/RpgProgression'
+import { Box, Sparkles, ShieldCheck } from 'lucide-react'
 
-export const CharacterPage: React.FC = () => {
-  const { latestMeasurement } = useInBodyStore()
+export function CharacterPage() {
+  const { measurements, latestMeasurement } = useInBodyStore()
+  const { sessions } = useWorkoutStore()
+  const { user } = useUserStore()
+
   const {
     character,
     setMode,
     updateCurrentBody,
     updateGoalBody,
     toggleAura,
-    resetToDefault,
+    error,
+    measuredBody,
+    goalBodies,
+    selectedGoalId,
+    selectedMeasurementId,
+    comparisonMeasurementId,
+    selectMeasurement,
+    selectComparison,
+    setVisualSource,
+    updateAppearance,
+    setAppearancePreset,
   } = useCharacterStore()
 
-  const [activeGearTab, setActiveGearTab] = useState('morph')
+  // Avatar representation mode: GLB model (Default) or Procedural geometry
+  const [avatarMode, setAvatarMode] = useState<'glb' | 'procedural'>('glb')
 
+  // GLB morph target state
+  const [morphTargets, setMorphTargets] = useState<MorphTargetInfo[]>([])
+  const [meshName, setMeshName] = useState<string>('Human')
+  const [morphInfluences, setMorphInfluences] = useState<Record<string, number>>(() => {
+    return loadAvatarMorphConfig() ?? {}
+  })
+
+  // Handle inspected morph targets reported by AvatarModel
+  const handleInspectTargets = useCallback((targets: MorphTargetInfo[], detectedMeshName: string) => {
+    setMorphTargets(targets)
+    setMeshName(detectedMeshName)
+
+    setMorphInfluences((prev) => {
+      const next = { ...prev }
+      for (const t of targets) {
+        if (next[t.name] === undefined) {
+          next[t.name] = t.defaultInfluence
+        }
+      }
+      return next
+    })
+  }, [])
+
+  // Morph change handler
+  const handleChangeMorph = useCallback((targetName: string, value: number) => {
+    setMorphInfluences((prev) => ({
+      ...prev,
+      [targetName]: value,
+    }))
+  }, [])
+
+  // Batch update handler
+  const handleBatchUpdateMorphs = useCallback((updates: Record<string, number>) => {
+    setMorphInfluences((prev) => ({
+      ...prev,
+      ...updates,
+    }))
+  }, [])
+
+  // Reset all handler
+  const handleResetAllMorphs = useCallback(() => {
+    const defaults: Record<string, number> = {}
+    for (const t of morphTargets) {
+      defaults[t.name] = t.defaultInfluence
+    }
+    setMorphInfluences(defaults)
+  }, [morphTargets])
+
+  const preview = resolveEvolution(character, measurements, selectedMeasurementId, goalBodies, selectedGoalId)
   const isGoal = character.mode === 'goal'
-  const activeMorph = isGoal ? character.goalBody : character.currentBody
-  const updateActiveMorph = isGoal ? updateGoalBody : updateCurrentBody
+  const comparison =
+    !isGoal && !preview.manual && comparisonMeasurementId ? resolveMeasurement(measurements, comparisonMeasurementId) : null
+  const changes = compareMeasurements(comparison, preview.measurement)
+  const historical = !isGoal && selectedMeasurementId !== null && preview.measurement?.id !== latestMeasurement?.id
+  const label = preview.manual
+    ? 'Xem thử thủ công · hình minh họa'
+    : isGoal
+    ? 'Mục tiêu · mô phỏng giả định, không bảo đảm kết quả'
+    : `${historical ? 'Phiếu lịch sử' : 'Phiếu hiện tại'} · ${preview.measurement?.date ?? 'chưa có số đo'} · minh họa gần đúng`
+  const activeManual = isGoal ? character.goalBody : character.currentBody
+  const updateManual = isGoal ? updateGoalBody : updateCurrentBody
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      {error && (
+        <p role="alert" className="text-rose-400">
+          {error}
+        </p>
+      )}
+
+      {/* Page Header */}
+      <div className="flex flex-wrap justify-between items-center gap-4 pb-3 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Phòng Rèn Nhân Vật 3D (Character Forge)
-            </h1>
-            <Badge variant={isGoal ? 'gold' : 'cyan'} size="sm">
-              {isGoal ? 'Chế độ: Mục Tiêu' : 'Chế độ: Hiện Tại'}
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Phòng Rèn Nhân Vật 3D</h1>
+            <Badge variant="cyan" className="text-xs font-mono">
+              v3.0 Interactive
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Không gian thị giác hóa 3D phản ánh thể trạng thực tế và mục tiêu hình thể tương lai của bạn.
+          <p className="text-sm text-slate-400 mt-1">
+            Mô hình nhân vật 3D tương tác toàn diện với điều khiển xoay 360°, thu phóng, góc nhìn camera và Morph Targets MPFB.
           </p>
         </div>
 
-        {/* Current vs Goal Mode Selector */}
-        <div className="flex items-center gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 self-start sm:self-auto">
-          <Button
-            size="sm"
-            variant={!isGoal ? 'primary' : 'ghost'}
-            className="text-xs font-semibold"
-            onClick={() => setMode('current')}
-          >
-            Thể Trạng Hiện Tại
-          </Button>
-          <Button
-            size="sm"
-            variant={isGoal ? 'gold' : 'ghost'}
-            className="text-xs font-semibold"
-            onClick={() => setMode('goal')}
-          >
-            Mục Tiêu Thể Hình
-          </Button>
-        </div>
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Renderer mode switcher */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800">
+            <Button
+              size="sm"
+              variant={avatarMode === 'glb' ? 'primary' : 'ghost'}
+              onClick={() => setAvatarMode('glb')}
+              className="text-xs gap-1.5 h-8 rounded-lg"
+            >
+              <Box className="h-3.5 w-3.5" />
+              3D Gym Avatar (GLB)
+            </Button>
+            <Button
+              size="sm"
+              variant={avatarMode === 'procedural' ? 'primary' : 'ghost'}
+              onClick={() => setAvatarMode('procedural')}
+              className="text-xs gap-1.5 h-8 rounded-lg"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Mô hình Thủ tục
+            </Button>
+          </div>
 
-      {/* Main Grid: 3D Viewport (7 cols) + Tuning & Equipment (5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* 3D Viewport (7 Cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <Card className="p-3 bg-slate-900/90 border-slate-800">
-            <AvatarCanvas
-              currentMorph={character.currentBody}
-              goalMorph={character.goalBody}
-              mode={character.mode}
-              onModeChange={setMode}
-              auraEnabled={character.auraUnlocked}
-              height="520px"
-            />
-          </Card>
-
-          {/* Biometric Comparison Card */}
-          <div className="grid grid-cols-3 gap-3">
-            <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">CƠ XƯƠNG (SMM)</span>
-              <div className="text-lg font-black text-teal-400 mt-1">
-                {isGoal ? '36.5 kg' : `${latestMeasurement.smmKg} kg`}
-              </div>
-              <span className="text-[10px] text-slate-500 block">
-                {isGoal ? 'Mục tiêu (+1.6kg)' : 'Kết quả InBody'}
-              </span>
-            </Card>
-
-            <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">TỶ LỆ MỠ (PBF)</span>
-              <div className="text-lg font-black text-amber-400 mt-1">
-                {isGoal ? '11.0 %' : `${latestMeasurement.pbfPercent} %`}
-              </div>
-              <span className="text-[10px] text-slate-500 block">
-                {isGoal ? 'Mục tiêu (-2.6%)' : 'Mức hiện tại'}
-              </span>
-            </Card>
-
-            <Card className="p-3 bg-slate-900/60 border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">CÂN NẶNG DỰ PHÓNG</span>
-              <div className="text-lg font-black text-white mt-1">
-                {isGoal ? '74.0 kg' : `${latestMeasurement.weightKg} kg`}
-              </div>
-              <span className="text-[10px] text-slate-500 block">
-                {isGoal ? 'Lean Bulk Target' : 'Thực tế'}
-              </span>
-            </Card>
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800">
+            <Button
+              size="sm"
+              variant={!isGoal ? 'primary' : 'ghost'}
+              onClick={() => setMode('current')}
+              className="text-xs h-8 rounded-lg"
+            >
+              Hiện tại
+            </Button>
+            <Button
+              size="sm"
+              variant={isGoal ? 'gold' : 'ghost'}
+              onClick={() => setMode('goal')}
+              className="text-xs h-8 rounded-lg"
+            >
+              Mục tiêu
+            </Button>
           </div>
         </div>
+      </div>
 
-        {/* Right: Controls & Gear Configuration (5 Cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <Tabs defaultValue="morph" value={activeGearTab} onValueChange={setActiveGearTab}>
-            <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger value="morph">Tham Số Morph 3D</TabsTrigger>
-              <TabsTrigger value="gear">Trang Bị RPG</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="morph" className="space-y-4">
-              <AvatarControls
-                morph={activeMorph}
-                onChange={updateActiveMorph}
-                onReset={resetToDefault}
-                auraEnabled={character.auraUnlocked}
-                onToggleAura={toggleAura}
-                title={
-                  isGoal
-                    ? 'Morph Mục Tiêu Thể Hình (Goal Mode)'
-                    : 'Morph Thể Trạng Hiện Tại (Current Mode)'
-                }
+      {/* Main 3D Avatar Workspace */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: 3D Canvas & Measurements */}
+        <div className="lg:col-span-7 space-y-4">
+          <Card className="p-3 bg-slate-950/40 border-slate-800/80">
+            {avatarMode === 'glb' ? (
+              <CharacterViewer
+                modelUrl="/models/gym_avatar_v3.glb"
+                morphInfluences={morphInfluences}
+                onInspectTargets={handleInspectTargets}
+                showDefectNotice={true}
               />
+            ) : (
+              <AvatarCanvas
+                currentMorph={isGoal ? mappedMorph(measuredBody) : preview.morph}
+                goalMorph={
+                  isGoal
+                    ? preview.morph
+                    : mappedMorph(
+                        selectedGoalId
+                          ? goalBodies[selectedGoalId] ?? BodyCompositionToAvatar(null, 'goal')
+                          : BodyCompositionToAvatar(null, 'goal')
+                      )
+                }
+                mode={character.mode}
+                onModeChange={setMode}
+                auraEnabled={character.auraUnlocked}
+                appearance={preview.appearance}
+                label={label}
+                comparisonMorph={comparison ? mappedMorph(BodyCompositionToAvatar(comparison)) : undefined}
+                comparisonLabel={comparison ? `${preview.measurement?.date} / ${comparison.date}` : undefined}
+              />
+            )}
+          </Card>
 
-              <Card className="p-4 bg-slate-950/60 border-slate-800 text-xs text-slate-400 space-y-2">
-                <div className="flex items-center gap-2 text-teal-400 font-semibold">
-                  <Info className="w-4 h-4" />
-                  Hướng Dẫn Tinh Chỉnh Avatar
-                </div>
-                <p>
-                  Kéo các thanh trượt để thử nghiệm tỷ lệ cơ bắp (Hypertrophy) và lớp mỡ (Fat Layer). Chế độ Mục Tiêu cho phép bạn hình dung thể hình ước tính khi đạt các mốc InBody tiếp theo.
-                </p>
-              </Card>
-            </TabsContent>
+          {/* Info Card */}
+          <Card className="p-4 space-y-2 text-sm text-slate-300">
+            <div className="flex items-center justify-between gap-2">
+              <Badge variant={isGoal ? 'gold' : 'cyan'}>
+                {avatarMode === 'glb' ? 'Mô hình 3D Blender GLB' : preview.manual ? 'Thủ công' : isGoal ? 'Giả định' : historical ? 'Lịch sử' : 'Hiện tại'}
+              </Badge>
+              {avatarMode === 'glb' && (
+                <span className="text-xs font-mono text-teal-400 flex items-center gap-1">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {morphTargets.length} morph targets khả dụng
+                </span>
+              )}
+            </div>
+            <p>{label}</p>
+            {!preview.manual && !preview.mapping.sourceId && (
+              <p className="text-amber-300">
+                Chưa có {isGoal ? 'mục tiêu đã chọn' : 'phiếu đo'}. Đang hiển thị hình trung tính.
+              </p>
+            )}
+            {!preview.manual && preview.mapping.missing.length > 0 && (
+              <p className="text-xs text-slate-400">
+                Dữ liệu chưa có: {preview.mapping.missing.map((key) => mappingInputLabels[key]).join(', ')}. Các vùng
+                này dùng tham số trung tính.
+              </p>
+            )}
+            <p className="text-xs text-slate-400">
+              Mô nạc phân đoạn gồm nhiều loại mô, không phải kích thước cơ chính xác. Không có hình thể nào được coi là lý
+              tưởng cho mọi người.
+            </p>
+          </Card>
 
-            <TabsContent value="gear" className="space-y-4">
-              {/* Equipped RPG Gear */}
-              <Card className="border-slate-800 bg-slate-900/80">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-white">
-                    <Shield className="w-4 h-4 text-teal-400" />
-                    Trang Bị Hỗ Trợ Đang Mang
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-0">
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                      <span className="text-slate-400">Đai Lưng Cương Lực</span>
-                      <strong className="text-white font-semibold">{character.equippedGear.liftingBelt}</strong>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                      <span className="text-slate-400">Băng Quấn Cổ Tay</span>
-                      <strong className="text-white font-semibold">{character.equippedGear.wristWraps}</strong>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                      <span className="text-slate-400">Băng Đầu Gối</span>
-                      <strong className="text-white font-semibold">{character.equippedGear.kneeSleeves}</strong>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                      <span className="text-slate-400">Màu Hào Quang Hào Khí</span>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
-                          style={{ backgroundColor: character.equippedGear.auraColor || '#14b8a6' }}
-                        />
-                        <strong className="text-teal-300">Teal Titan</strong>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Unlocked Skins */}
-              <Card className="border-slate-800 bg-slate-900/80">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-white">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    Trang Phục / Lớp Nhân Vật (Skin)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 pt-0">
-                  {character.unlockedSkins.map((skin, idx) => (
-                    <div
-                      key={skin}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                        idx === 0
-                          ? 'bg-teal-950/30 border-teal-500/50 text-white font-semibold'
-                          : 'bg-slate-950/50 border-slate-800 text-slate-300 hover:border-slate-700'
-                      }`}
+          {/* Measurements & Historical Comparison */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Mốc đo & so sánh lịch sử</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {!measurements.length ? (
+                <p className="text-sm text-slate-400">Thêm phiếu tại trang InBody để xem các mốc thay đổi.</p>
+              ) : (
+                <>
+                  <label className="text-xs text-slate-400 block">
+                    Phiếu bên trái
+                    <select
+                      aria-label="Chọn phiếu đo avatar"
+                      className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700"
+                      value={selectedMeasurementId ?? ''}
+                      onChange={(e) => {
+                        selectMeasurement(e.target.value || null)
+                        selectComparison(null)
+                      }}
                     >
-                      <div className="flex items-center gap-2">
-                        <User className="w-3.5 h-3.5 text-teal-400" />
-                        <span>{skin}</span>
-                      </div>
-                      {idx === 0 ? (
-                        <span className="flex items-center gap-1 text-[11px] text-teal-300">
-                          <Check className="w-3.5 h-3.5" /> Đang dùng
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-500">Đã mở khóa</span>
-                      )}
-                    </div>
-                  ))}
+                      <option value="">Phiếu mới nhất · {latestMeasurement?.date}</option>
+                      {measurements.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.date} · {formatBodyValue(m.weightKg)} kg · {m.id.slice(0, 6)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs text-slate-400 block">
+                    Phiếu bên phải
+                    <select
+                      aria-label="Chọn phiếu đo so sánh"
+                      disabled={isGoal || preview.manual}
+                      className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700 disabled:opacity-50"
+                      value={comparisonMeasurementId ?? ''}
+                      onChange={(e) => selectComparison(e.target.value || null)}
+                    >
+                      <option value="">Không so sánh</option>
+                      {measurements
+                        .filter((m) => m.id !== preview.measurement?.id)
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.date} · {formatBodyValue(m.weightKg)} kg · {m.id.slice(0, 6)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      selectMeasurement(null)
+                      selectComparison(null)
+                    }}
+                  >
+                    Về phiếu mới nhất
+                  </Button>
+                </>
+              )}
+              {comparison && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-slate-300 text-left">
+                    <thead>
+                      <tr>
+                        <th>Chênh lệch</th>
+                        <th>
+                          {comparison.date} − {preview.measurement?.date}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bodyMetrics.map((metric) => (
+                        <tr key={metric} className="border-t border-slate-800">
+                          <td className="py-2">{metricLabels[metric]}</td>
+                          <td>
+                            {formatBodyValue(changes[metric])}{' '}
+                            {metric === 'pbfPercent' ? 'điểm %' : units[metric]}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-slate-500">
+                    Hai hình dùng cùng phong cách và tỷ lệ hiển thị. Chọn ngày chỉ thay đổi bản xem, không sửa phiếu.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Customization Panel & RPG Gear */}
+        <div className="lg:col-span-5 space-y-4">
+          {avatarMode === 'glb' ? (
+            <AvatarCustomizationPanel
+              morphTargets={morphTargets}
+              meshName={meshName}
+              currentInfluences={morphInfluences}
+              onChangeMorph={handleChangeMorph}
+              onBatchUpdateMorphs={handleBatchUpdateMorphs}
+              onResetAllMorphs={handleResetAllMorphs}
+              workoutSessions={sessions}
+              bodyMeasurements={measurements}
+              totalXp={user.currentXp}
+            />
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nguồn hình thể & phong cách</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={!preview.manual ? 'primary' : 'outline'}
+                      onClick={() => setVisualSource('measurement')}
+                    >
+                      Dùng số đo / mục tiêu
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={preview.manual ? 'primary' : 'outline'}
+                      onClick={() => setVisualSource('manual')}
+                    >
+                      Xem thử thủ công
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Tùy chỉnh màu và trang phục được lưu riêng, không thay đổi số đo. Mục tiêu là mô phỏng giả định,
+                    không dự đoán kết quả tương lai.
+                  </p>
+                  <label className="text-xs text-slate-400 block">
+                    Phong cách
+                    <select
+                      aria-label="Phong cách nhân vật"
+                      className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700"
+                      value={preview.appearance.preset}
+                      onChange={(e) => setAppearancePreset(e.target.value as CharacterAppearance['preset'])}
+                    >
+                      <option value="forge">Forge · xanh ngọc</option>
+                      <option value="scout">Scout · xanh lá</option>
+                      <option value="guardian">Guardian · tím</option>
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(['skinColor', 'clothingColor', 'accentColor'] as const).map((key) => (
+                      <label key={key} className="text-xs text-slate-400">
+                        {{ skinColor: 'Màu da', clothingColor: 'Trang phục', accentColor: 'Điểm nhấn' }[key]}
+                        <input
+                          aria-label={
+                            { skinColor: 'Màu da', clothingColor: 'Màu trang phục', accentColor: 'Màu điểm nhấn' }[key]
+                          }
+                          type="color"
+                          value={preview.appearance[key]}
+                          onChange={(e) => updateAppearance({ [key]: e.target.value })}
+                          className="mt-2 block h-8 w-full bg-slate-950 rounded"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Diện mạo cơ bản: thân trên để trần và quần ngắn. Các lựa chọn trang phục cũ vẫn được lưu, không
+                    thay đổi số đo.
+                  </p>
+                  <Button size="sm" variant="outline" onClick={toggleAura}>
+                    {character.auraUnlocked ? 'Tắt hào quang' : 'Bật hào quang'}
+                  </Button>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+
+              {preview.manual && (
+                <AvatarControls
+                  morph={activeManual}
+                  onChange={updateManual}
+                  onReset={() =>
+                    updateManual(
+                      isGoal
+                        ? mappedMorph(
+                            selectedGoalId
+                              ? goalBodies[selectedGoalId] ?? BodyCompositionToAvatar(null, 'goal')
+                              : BodyCompositionToAvatar(null, 'goal')
+                          )
+                        : mappedMorph(BodyCompositionToAvatar(preview.measurement))
+                    )
+                  }
+                  auraEnabled={character.auraUnlocked}
+                  onToggleAura={toggleAura}
+                  title="Bản xem thử · không sửa InBody"
+                />
+              )}
+            </>
+          )}
+
+          {/* Equipped Gear Card */}
+          <Card className="p-4 text-xs text-slate-400 border-slate-800 bg-slate-900/60">
+            <p className="font-bold text-teal-300 mb-2">Trang bị RPG đã lưu</p>
+            <p>Đai lưng: {character.equippedGear.liftingBelt ?? 'Chưa trang bị'}</p>
+            <p>Băng cổ tay: {character.equippedGear.wristWraps ?? 'Chưa trang bị'}</p>
+            <p>Băng gối: {character.equippedGear.kneeSleeves ?? 'Chưa trang bị'}</p>
+            <p className="mt-2">Trang phục đã mở: {character.unlockedSkins.join(', ')}</p>
+          </Card>
         </div>
       </div>
+
+      <BodyTargets />
+      <CosmeticRewards />
     </div>
   )
 }

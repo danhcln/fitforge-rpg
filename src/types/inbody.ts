@@ -1,29 +1,42 @@
 export interface SegmentalLean {
-  rightArmKg: number
-  rightArmPercent: number
-  leftArmKg: number
-  leftArmPercent: number
-  trunkKg: number
-  trunkPercent: number
-  rightLegKg: number
-  rightLegPercent: number
-  leftLegKg: number
-  leftLegPercent: number
+  rightArmKg?: number | null
+  rightArmPercent?: number | null
+  leftArmKg?: number | null
+  leftArmPercent?: number | null
+  trunkKg?: number | null
+  trunkPercent?: number | null
+  rightLegKg?: number | null
+  rightLegPercent?: number | null
+  leftLegKg?: number | null
+  leftLegPercent?: number | null
 }
-
+export type BodyMetric = 'weightKg' | 'smmKg' | 'pbfPercent' | 'bodyFatMassKg' | 'bmi'
+export interface DeviceReference {
+  min: number
+  max: number
+  unit: 'kg' | '%' | 'kg/m²'
+  label: string
+  scope: 'individual' | 'adult'
+}
 export interface BodyMeasurement {
   id: string
   date: string
-  weightKg: number
-  smmKg: number // Skeletal Muscle Mass (Khối lượng cơ xương)
-  pbfPercent: number // Percent Body Fat (Tỷ lệ mỡ cơ thể)
-  bmi: number // Chỉ số khối cơ thể
-  bodyFatMassKg: number // Khối lượng mỡ
-  bmrKcal: number // Tỷ lệ trao đổi chất cơ bản
-  visceralFatLevel: number // Mức mỡ nội tạng (1 - 20)
-  bodyWaterKg: number // Lượng nước trong cơ thể
-  boneMassKg: number // Khối lượng khoáng chất xương
-  inBodyScore?: number // Điểm InBody (ví dụ: 78/100)
-  segmentalLean: SegmentalLean
+  /** Version 3 records unavailable core inputs as null. Legacy rows may omit height. */
+  measurementVersion?: 3
+  heightCm?: number | null
+  weightKg?: number | null
+  smmKg?: number | null
+  pbfPercent?: number | null
+  bodyFatMassKg?: number | null
+  /** BMI transcribed from the device, never overwritten by derived BMI. */
+  bmi?: number | null
+  bmrKcal?: number | null
+  visceralFatLevel?: number | null
+  bodyWaterKg?: number | null
+  boneMassKg?: number | null
+  inBodyScore?: number | null
+  ageYears?: number | null
+  segmentalLean?: SegmentalLean
+  references?: Partial<Record<BodyMetric, DeviceReference>>
   notes?: string
 }
