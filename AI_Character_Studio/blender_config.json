@@ -1,0 +1,15 @@
+{
+  "blender_path": "C:\\Program Files\\WindowsApps\\BlenderFoundation.Blender_5.2.3.0_x64__ppwjx1n5r4v9t\\Blender\\blender.exe",
+  "launcher_path": "C:\\Users\\Danh\\AppData\\Local\\Microsoft\\WindowsApps\\blender-launcher.exe",
+  "version": "5.2.3 LTS",
+  "app_package": "BlenderFoundation.Blender_ppwjx1n5r4v9t",
+  "package_roaming_path": "C:\\Users\\Danh\\AppData\\Local\\Packages\\BlenderFoundation.Blender_ppwjx1n5r4v9t\\LocalCache\\Roaming\\Blender Foundation\\Blender\\5.2",
+  "extension_id": "bl_ext.user_default.mpfb",
+  "mpfb_version": "2.0.18",
+  "mpfb_installed_path": "C:\\Users\\Danh\\AppData\\Local\\Packages\\BlenderFoundation.Blender_ppwjx1n5r4v9t\\LocalCache\\Roaming\\Blender Foundation\\Blender\\5.2\\extensions\\user_default\\mpfb",
+  "mpfb_data_path": "C:\\Users\\Danh\\AppData\\Local\\Packages\\BlenderFoundation.Blender_ppwjx1n5r4v9t\\LocalCache\\Roaming\\Blender Foundation\\Blender\\5.2\\extensions\\.user\\user_default\\mpfb\\data",
+  "system_assets_pack": "makehuman_system_assets",
+  "system_assets_status": "OK",
+  "status": "ready",
+  "last_verified": "2026-10-23T11:23:00+07:00"
+}

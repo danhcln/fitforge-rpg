@@ -1,453 +1,91 @@
-import { useState, useCallback } from 'react'
-import { useCharacterStore, useInBodyStore, useWorkoutStore, useUserStore } from '@/stores'
-import {
-  AvatarCanvas,
-  AvatarControls,
-  CharacterViewer,
-  AvatarCustomizationPanel,
-} from '@/components/avatar'
-import type { MorphTargetInfo } from '@/services/character/avatarMorphTypes'
-import { loadAvatarMorphConfig } from '@/services/character/avatarStorage'
+import { useEffect } from 'react'
+import { useCharacterStore, useInBodyStore } from '@/stores'
+import { AthleteViewer } from '@/components/avatar/AthleteViewer'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import { BodyTargets } from '@/components/BodyComposition'
-import { formatBodyValue, mappingInputLabels, metricLabels } from '@/services/bodyComposition/presentation'
-import { bodyMetrics, compareMeasurements, units } from '@/services/bodyComposition/calculations'
-import { mappedMorph, resolveEvolution, resolveMeasurement } from '@/services/character/evolution'
-import { BodyCompositionToAvatar } from '@/services/bodyComposition/BodyCompositionToAvatar'
-import type { CharacterAppearance } from '@/types'
 import { CosmeticRewards } from '@/components/RpgProgression'
-import { Box, Sparkles, ShieldCheck } from 'lucide-react'
+import { resolveEvolution, mappedMorph } from '@/services/character/evolution'
+import { BodyCompositionToAvatar } from '@/services/bodyComposition/BodyCompositionToAvatar'
+import { athleteControls, athletePresets, athleteStyles as styles } from '@/services/character/athlete'
+import { formatBodyValue, metricLabels } from '@/services/bodyComposition/presentation'
+import { bodyMetrics, compareMeasurements, units } from '@/services/bodyComposition/calculations'
+import { Check, Palette, SlidersHorizontal } from 'lucide-react'
 
 export function CharacterPage() {
   const { measurements, latestMeasurement } = useInBodyStore()
-  const { sessions } = useWorkoutStore()
-  const { user } = useUserStore()
-
-  const {
-    character,
-    setMode,
-    updateCurrentBody,
-    updateGoalBody,
-    toggleAura,
-    error,
-    measuredBody,
-    goalBodies,
-    selectedGoalId,
-    selectedMeasurementId,
-    comparisonMeasurementId,
-    selectMeasurement,
-    selectComparison,
-    setVisualSource,
-    updateAppearance,
-    setAppearancePreset,
-  } = useCharacterStore()
-
-  // Avatar representation mode: GLB model (Default) or Procedural geometry
-  const [avatarMode, setAvatarMode] = useState<'glb' | 'procedural'>('glb')
-
-  // GLB morph target state
-  const [morphTargets, setMorphTargets] = useState<MorphTargetInfo[]>([])
-  const [meshName, setMeshName] = useState<string>('Human')
-  const [morphInfluences, setMorphInfluences] = useState<Record<string, number>>(() => {
-    return loadAvatarMorphConfig() ?? {}
-  })
-
-  // Handle inspected morph targets reported by AvatarModel
-  const handleInspectTargets = useCallback((targets: MorphTargetInfo[], detectedMeshName: string) => {
-    setMorphTargets(targets)
-    setMeshName(detectedMeshName)
-
-    setMorphInfluences((prev) => {
-      const next = { ...prev }
-      for (const t of targets) {
-        if (next[t.name] === undefined) {
-          next[t.name] = t.defaultInfluence
-        }
-      }
-      return next
-    })
-  }, [])
-
-  // Morph change handler
-  const handleChangeMorph = useCallback((targetName: string, value: number) => {
-    setMorphInfluences((prev) => ({
-      ...prev,
-      [targetName]: value,
-    }))
-  }, [])
-
-  // Batch update handler
-  const handleBatchUpdateMorphs = useCallback((updates: Record<string, number>) => {
-    setMorphInfluences((prev) => ({
-      ...prev,
-      ...updates,
-    }))
-  }, [])
-
-  // Reset all handler
-  const handleResetAllMorphs = useCallback(() => {
-    const defaults: Record<string, number> = {}
-    for (const t of morphTargets) {
-      defaults[t.name] = t.defaultInfluence
-    }
-    setMorphInfluences(defaults)
-  }, [morphTargets])
-
+  const store = useCharacterStore()
+  const { character, goalBodies, selectedGoalId, selectedMeasurementId, comparisonMeasurementId } = store
   const preview = resolveEvolution(character, measurements, selectedMeasurementId, goalBodies, selectedGoalId)
   const isGoal = character.mode === 'goal'
-  const comparison =
-    !isGoal && !preview.manual && comparisonMeasurementId ? resolveMeasurement(measurements, comparisonMeasurementId) : null
-  const changes = compareMeasurements(comparison, preview.measurement)
-  const historical = !isGoal && selectedMeasurementId !== null && preview.measurement?.id !== latestMeasurement?.id
-  const label = preview.manual
-    ? 'Xem thử thủ công · hình minh họa'
-    : isGoal
-    ? 'Mục tiêu · mô phỏng giả định, không bảo đảm kết quả'
-    : `${historical ? 'Phiếu lịch sử' : 'Phiếu hiện tại'} · ${preview.measurement?.date ?? 'chưa có số đo'} · minh họa gần đúng`
-  const activeManual = isGoal ? character.goalBody : character.currentBody
-  const updateManual = isGoal ? updateGoalBody : updateCurrentBody
+  const appearance = character.appearance ?? styles.forge
+  const selectedComparison = !isGoal && !preview.manual ? measurements.find(m => m.id === comparisonMeasurementId) : undefined
+  const comparison = selectedComparison ? mappedMorph(BodyCompositionToAvatar(selectedComparison)) : undefined
+  const differences = compareMeasurements(preview.measurement, selectedComparison)
+  const manualBody = isGoal ? character.goalBody : character.currentBody
+  const update = isGoal ? store.updateGoalBody : store.updateCurrentBody
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (useCharacterStore.getState().pendingWrites > 0) event.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [])
+  const label = preview.manual ? 'Bản xem thử thủ công' : isGoal ? 'Mục tiêu · mô phỏng giả định' : `Phiếu đo · ${preview.measurement?.date ?? 'chưa có số đo'}`
 
-  return (
-    <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {error && (
-        <p role="alert" className="text-rose-400">
-          {error}
-        </p>
-      )}
-
-      {/* Page Header */}
-      <div className="flex flex-wrap justify-between items-center gap-4 pb-3 border-b border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Phòng Rèn Nhân Vật 3D</h1>
-            <Badge variant="cyan" className="text-xs font-mono">
-              v3.0 Interactive
-            </Badge>
-          </div>
-          <p className="text-sm text-slate-400 mt-1">
-            Mô hình nhân vật 3D tương tác toàn diện với điều khiển xoay 360°, thu phóng, góc nhìn camera và Morph Targets MPFB.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Renderer mode switcher */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800">
-            <Button
-              size="sm"
-              variant={avatarMode === 'glb' ? 'primary' : 'ghost'}
-              onClick={() => setAvatarMode('glb')}
-              className="text-xs gap-1.5 h-8 rounded-lg"
-            >
-              <Box className="h-3.5 w-3.5" />
-              3D Gym Avatar (GLB)
-            </Button>
-            <Button
-              size="sm"
-              variant={avatarMode === 'procedural' ? 'primary' : 'ghost'}
-              onClick={() => setAvatarMode('procedural')}
-              className="text-xs gap-1.5 h-8 rounded-lg"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Mô hình Thủ tục
-            </Button>
-          </div>
-
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800">
-            <Button
-              size="sm"
-              variant={!isGoal ? 'primary' : 'ghost'}
-              onClick={() => setMode('current')}
-              className="text-xs h-8 rounded-lg"
-            >
-              Hiện tại
-            </Button>
-            <Button
-              size="sm"
-              variant={isGoal ? 'gold' : 'ghost'}
-              onClick={() => setMode('goal')}
-              className="text-xs h-8 rounded-lg"
-            >
-              Mục tiêu
-            </Button>
-          </div>
-        </div>
+  return <div className="space-y-6 animate-in fade-in-50 duration-200">
+    <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-800 pb-5">
+      <div><p className="mb-2 text-[10px] font-bold tracking-[.25em] text-teal-400">YOUR FITNESS JOURNEY</p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Chiến binh của bạn</h1>
+        <p className="mt-2 text-sm text-slate-400">Diện mạo riêng. Từng bước khỏe hơn.</p>
       </div>
-
-      {/* Main 3D Avatar Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: 3D Canvas & Measurements */}
-        <div className="lg:col-span-7 space-y-4">
-          <Card className="p-3 bg-slate-950/40 border-slate-800/80">
-            {avatarMode === 'glb' ? (
-              <CharacterViewer
-                modelUrl="/models/gym_avatar_v3.glb"
-                morphInfluences={morphInfluences}
-                onInspectTargets={handleInspectTargets}
-                showDefectNotice={true}
-              />
-            ) : (
-              <AvatarCanvas
-                currentMorph={isGoal ? mappedMorph(measuredBody) : preview.morph}
-                goalMorph={
-                  isGoal
-                    ? preview.morph
-                    : mappedMorph(
-                        selectedGoalId
-                          ? goalBodies[selectedGoalId] ?? BodyCompositionToAvatar(null, 'goal')
-                          : BodyCompositionToAvatar(null, 'goal')
-                      )
-                }
-                mode={character.mode}
-                onModeChange={setMode}
-                auraEnabled={character.auraUnlocked}
-                appearance={preview.appearance}
-                label={label}
-                comparisonMorph={comparison ? mappedMorph(BodyCompositionToAvatar(comparison)) : undefined}
-                comparisonLabel={comparison ? `${preview.measurement?.date} / ${comparison.date}` : undefined}
-              />
-            )}
-          </Card>
-
-          {/* Info Card */}
-          <Card className="p-4 space-y-2 text-sm text-slate-300">
-            <div className="flex items-center justify-between gap-2">
-              <Badge variant={isGoal ? 'gold' : 'cyan'}>
-                {avatarMode === 'glb' ? 'Mô hình 3D Blender GLB' : preview.manual ? 'Thủ công' : isGoal ? 'Giả định' : historical ? 'Lịch sử' : 'Hiện tại'}
-              </Badge>
-              {avatarMode === 'glb' && (
-                <span className="text-xs font-mono text-teal-400 flex items-center gap-1">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  {morphTargets.length} morph targets khả dụng
-                </span>
-              )}
-            </div>
-            <p>{label}</p>
-            {!preview.manual && !preview.mapping.sourceId && (
-              <p className="text-amber-300">
-                Chưa có {isGoal ? 'mục tiêu đã chọn' : 'phiếu đo'}. Đang hiển thị hình trung tính.
-              </p>
-            )}
-            {!preview.manual && preview.mapping.missing.length > 0 && (
-              <p className="text-xs text-slate-400">
-                Dữ liệu chưa có: {preview.mapping.missing.map((key) => mappingInputLabels[key]).join(', ')}. Các vùng
-                này dùng tham số trung tính.
-              </p>
-            )}
-            <p className="text-xs text-slate-400">
-              Mô nạc phân đoạn gồm nhiều loại mô, không phải kích thước cơ chính xác. Không có hình thể nào được coi là lý
-              tưởng cho mọi người.
-            </p>
-          </Card>
-
-          {/* Measurements & Historical Comparison */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Mốc đo & so sánh lịch sử</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {!measurements.length ? (
-                <p className="text-sm text-slate-400">Thêm phiếu tại trang InBody để xem các mốc thay đổi.</p>
-              ) : (
-                <>
-                  <label className="text-xs text-slate-400 block">
-                    Phiếu bên trái
-                    <select
-                      aria-label="Chọn phiếu đo avatar"
-                      className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700"
-                      value={selectedMeasurementId ?? ''}
-                      onChange={(e) => {
-                        selectMeasurement(e.target.value || null)
-                        selectComparison(null)
-                      }}
-                    >
-                      <option value="">Phiếu mới nhất · {latestMeasurement?.date}</option>
-                      {measurements.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.date} · {formatBodyValue(m.weightKg)} kg · {m.id.slice(0, 6)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs text-slate-400 block">
-                    Phiếu bên phải
-                    <select
-                      aria-label="Chọn phiếu đo so sánh"
-                      disabled={isGoal || preview.manual}
-                      className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700 disabled:opacity-50"
-                      value={comparisonMeasurementId ?? ''}
-                      onChange={(e) => selectComparison(e.target.value || null)}
-                    >
-                      <option value="">Không so sánh</option>
-                      {measurements
-                        .filter((m) => m.id !== preview.measurement?.id)
-                        .map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.date} · {formatBodyValue(m.weightKg)} kg · {m.id.slice(0, 6)}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      selectMeasurement(null)
-                      selectComparison(null)
-                    }}
-                  >
-                    Về phiếu mới nhất
-                  </Button>
-                </>
-              )}
-              {comparison && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-slate-300 text-left">
-                    <thead>
-                      <tr>
-                        <th>Chênh lệch</th>
-                        <th>
-                          {comparison.date} − {preview.measurement?.date}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bodyMetrics.map((metric) => (
-                        <tr key={metric} className="border-t border-slate-800">
-                          <td className="py-2">{metricLabels[metric]}</td>
-                          <td>
-                            {formatBodyValue(changes[metric])}{' '}
-                            {metric === 'pbfPercent' ? 'điểm %' : units[metric]}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <p className="text-xs text-slate-500">
-                    Hai hình dùng cùng phong cách và tỷ lệ hiển thị. Chọn ngày chỉ thay đổi bản xem, không sửa phiếu.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column: Customization Panel & RPG Gear */}
-        <div className="lg:col-span-5 space-y-4">
-          {avatarMode === 'glb' ? (
-            <AvatarCustomizationPanel
-              morphTargets={morphTargets}
-              meshName={meshName}
-              currentInfluences={morphInfluences}
-              onChangeMorph={handleChangeMorph}
-              onBatchUpdateMorphs={handleBatchUpdateMorphs}
-              onResetAllMorphs={handleResetAllMorphs}
-              workoutSessions={sessions}
-              bodyMeasurements={measurements}
-              totalXp={user.currentXp}
-            />
-          ) : (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Nguồn hình thể & phong cách</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant={!preview.manual ? 'primary' : 'outline'}
-                      onClick={() => setVisualSource('measurement')}
-                    >
-                      Dùng số đo / mục tiêu
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={preview.manual ? 'primary' : 'outline'}
-                      onClick={() => setVisualSource('manual')}
-                    >
-                      Xem thử thủ công
-                    </Button>
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    Tùy chỉnh màu và trang phục được lưu riêng, không thay đổi số đo. Mục tiêu là mô phỏng giả định,
-                    không dự đoán kết quả tương lai.
-                  </p>
-                  <label className="text-xs text-slate-400 block">
-                    Phong cách
-                    <select
-                      aria-label="Phong cách nhân vật"
-                      className="block w-full mt-1 p-2 rounded-xl bg-slate-950 border border-slate-700"
-                      value={preview.appearance.preset}
-                      onChange={(e) => setAppearancePreset(e.target.value as CharacterAppearance['preset'])}
-                    >
-                      <option value="forge">Forge · xanh ngọc</option>
-                      <option value="scout">Scout · xanh lá</option>
-                      <option value="guardian">Guardian · tím</option>
-                    </select>
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(['skinColor', 'clothingColor', 'accentColor'] as const).map((key) => (
-                      <label key={key} className="text-xs text-slate-400">
-                        {{ skinColor: 'Màu da', clothingColor: 'Trang phục', accentColor: 'Điểm nhấn' }[key]}
-                        <input
-                          aria-label={
-                            { skinColor: 'Màu da', clothingColor: 'Màu trang phục', accentColor: 'Màu điểm nhấn' }[key]
-                          }
-                          type="color"
-                          value={preview.appearance[key]}
-                          onChange={(e) => updateAppearance({ [key]: e.target.value })}
-                          className="mt-2 block h-8 w-full bg-slate-950 rounded"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    Diện mạo cơ bản: thân trên để trần và quần ngắn. Các lựa chọn trang phục cũ vẫn được lưu, không
-                    thay đổi số đo.
-                  </p>
-                  <Button size="sm" variant="outline" onClick={toggleAura}>
-                    {character.auraUnlocked ? 'Tắt hào quang' : 'Bật hào quang'}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {preview.manual && (
-                <AvatarControls
-                  morph={activeManual}
-                  onChange={updateManual}
-                  onReset={() =>
-                    updateManual(
-                      isGoal
-                        ? mappedMorph(
-                            selectedGoalId
-                              ? goalBodies[selectedGoalId] ?? BodyCompositionToAvatar(null, 'goal')
-                              : BodyCompositionToAvatar(null, 'goal')
-                          )
-                        : mappedMorph(BodyCompositionToAvatar(preview.measurement))
-                    )
-                  }
-                  auraEnabled={character.auraUnlocked}
-                  onToggleAura={toggleAura}
-                  title="Bản xem thử · không sửa InBody"
-                />
-              )}
-            </>
-          )}
-
-          {/* Equipped Gear Card */}
-          <Card className="p-4 text-xs text-slate-400 border-slate-800 bg-slate-900/60">
-            <p className="font-bold text-teal-300 mb-2">Trang bị RPG đã lưu</p>
-            <p>Đai lưng: {character.equippedGear.liftingBelt ?? 'Chưa trang bị'}</p>
-            <p>Băng cổ tay: {character.equippedGear.wristWraps ?? 'Chưa trang bị'}</p>
-            <p>Băng gối: {character.equippedGear.kneeSleeves ?? 'Chưa trang bị'}</p>
-            <p className="mt-2">Trang phục đã mở: {character.unlockedSkins.join(', ')}</p>
-          </Card>
-        </div>
+      <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800 gap-1">
+        <Button size="sm" variant={!isGoal ? 'primary' : 'ghost'} onClick={() => store.setMode('current')}>Hiện tại</Button>
+        <Button size="sm" variant={isGoal ? 'gold' : 'ghost'} onClick={() => store.setMode('goal')}>Mục tiêu</Button>
       </div>
-
-      <BodyTargets />
-      <CosmeticRewards />
     </div>
-  )
+    {store.error && <p role="alert" className="text-rose-300 border border-rose-900 rounded-xl p-3">{store.error}</p>}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="lg:col-span-7 space-y-4">
+        <AthleteViewer morph={preview.morph} appearance={appearance} comparisonMorph={comparison} label={label} />
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-400">
+          <Badge variant={preview.manual ? 'purple' : isGoal ? 'gold' : 'cyan'}>{preview.manual ? 'Tùy chỉnh tự do' : isGoal ? 'Mô phỏng mục tiêu' : 'Theo số đo'}</Badge>
+          <span role="status" className="inline-flex items-center gap-1"><Check className="w-3 h-3 text-teal-400" />{store.pendingWrites ? 'Đang lưu diện mạo…' : store.error ? 'Chưa lưu được thay đổi' : 'Diện mạo được lưu trên thiết bị'}</span>
+        </div>
+        {!preview.manual && <Card className="p-4 text-sm text-slate-400">
+          {!preview.mapping.sourceId ? <p>Chưa có {isGoal ? 'mục tiêu đã chọn' : 'phiếu đo'}. Nhân vật đang dùng hình thể trung tính.</p> : <p>{label}. Chỉ số còn thiếu được thể hiện bằng tỷ lệ trung tính.</p>}
+          <p className="text-xs mt-2">Hình thể là minh họa gần đúng; XP và Level không làm tăng cơ trên nhân vật.</p>
+        </Card>}
+        <details className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+          <summary className="font-semibold text-sm text-slate-200 cursor-pointer">Mốc đo & so sánh lịch sử</summary>
+          <div className="mt-4 space-y-3">
+            {!measurements.length ? <p className="text-sm text-slate-400">Thêm phiếu ở trang Chỉ số InBody để theo dõi thay đổi.</p> : <>
+              <label className="block text-xs text-slate-400">Phiếu đang xem<select aria-label="Chọn phiếu đo avatar" className="block w-full mt-2 rounded-xl bg-slate-950 border border-slate-700 p-2 text-slate-200" value={selectedMeasurementId ?? ''} onChange={e => { store.selectMeasurement(e.target.value || null); store.selectComparison(null) }}><option value="">Mới nhất · {latestMeasurement?.date}</option>{measurements.map(m => <option key={m.id} value={m.id}>{m.date} · {formatBodyValue(m.weightKg)} kg</option>)}</select></label>
+              <label className="block text-xs text-slate-400">So sánh với<select aria-label="Chọn phiếu đo so sánh" className="block w-full mt-2 rounded-xl bg-slate-950 border border-slate-700 p-2 text-slate-200 disabled:opacity-50" disabled={isGoal || preview.manual} value={comparisonMeasurementId ?? ''} onChange={e => store.selectComparison(e.target.value || null)}><option value="">Không so sánh</option>{measurements.filter(m => m.id !== preview.measurement?.id).map(m => <option key={m.id} value={m.id}>{m.date} · {formatBodyValue(m.weightKg)} kg</option>)}</select></label>
+              <Button size="sm" variant="outline" onClick={() => { store.selectMeasurement(null); store.selectComparison(null) }}>Về phiếu mới nhất</Button>
+            </>}
+            {selectedComparison && <><p className="text-xs text-teal-300">Trái: {preview.measurement?.date} · Phải: {selectedComparison.date}</p><table className="w-full text-sm text-slate-400 text-left"><thead><tr><th>Chỉ số</th><th>Trái − phải</th></tr></thead><tbody>{bodyMetrics.map(metric => <tr key={metric} className="border-t border-slate-800"><td className="py-2">{metricLabels[metric]}</td><td>{formatBodyValue(differences[metric])} {metric === 'pbfPercent' ? 'điểm %' : units[metric]}</td></tr>)}</tbody></table></>}
+          </div>
+        </details>
+        <p className="text-[10px] leading-relaxed text-slate-500 px-1">Mô hình thủ tục 3D minh họa thể trạng RPG - Không phản ánh chính xác cấu trúc giải phẫu y khoa. Mục tiêu thể hình là mô phỏng giả định, không bảo đảm kết quả.</p>
+      </div>
+      <div className="lg:col-span-5 space-y-4">
+        <Card><CardHeader><CardTitle><Palette className="w-4 h-4 text-teal-400" /> Phong cách của bạn</CardTitle></CardHeader><CardContent className="space-y-5">
+          <div className="grid grid-cols-3 gap-2">{Object.entries(styles).map(([key, style]) => <button key={key} type="button" aria-label={`Phong cách ${key}`} onClick={() => store.updateAppearance(style)} className={`rounded-xl border p-3 text-xs capitalize transition-colors ${appearance.preset === key ? 'border-teal-500 bg-teal-950/30 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}><span className="mx-auto mb-2 block w-7 h-7 rounded-full ring-4 ring-white/5" style={{ background: style.clothingColor }} />{key}</button>)}</div>
+          <div className="grid grid-cols-2 gap-3">{([['skinColor', 'Màu da'], ['hairColor', 'Màu tóc'], ['clothingColor', 'Áo tập'], ['accentColor', 'Điểm nhấn']] as const).map(([key, text]) => <label key={key} className="rounded-xl bg-slate-950/60 border border-slate-800 p-3 text-xs text-slate-400">{text}<input type="color" aria-label={text} value={appearance[key] ?? '#30231e'} onChange={e => store.updateAppearance({ ...appearance, [key]: e.target.value })} className="mt-2 block w-full h-8 bg-transparent cursor-pointer" /></label>)}</div>
+          <p className="text-[11px] text-slate-500">Áo ba lỗ, quần short và giày tập. Màu sắc được lưu riêng với số đo.</p>
+        </CardContent></Card>
+        <Card><CardHeader><CardTitle><SlidersHorizontal className="w-4 h-4 text-teal-400" /> Hình thể</CardTitle></CardHeader><CardContent className="space-y-5">
+          <div className="grid grid-cols-2 gap-2"><Button size="sm" variant={!preview.manual ? 'primary' : 'outline'} onClick={() => store.setVisualSource('measurement')}>Theo số đo</Button><Button size="sm" variant={preview.manual ? 'primary' : 'outline'} onClick={() => store.setVisualSource('manual')}>Tự tùy chỉnh</Button></div>
+          {preview.manual ? <>
+            <div className="flex flex-wrap gap-2">{Object.entries(athletePresets).map(([key, preset]) => <Button key={key} size="sm" variant="outline" onClick={() => update(preset.morph)}>{preset.label}</Button>)}</div>
+            {athleteControls.map(control => <label key={control.key} className="block text-xs text-slate-300"><span className="flex justify-between mb-3"><span>{control.label}</span><span className="font-mono text-teal-400">{Math.round(Math.max(0,Math.min(1,(manualBody[control.key]-control.min)/(control.max-control.min)))*100)}%</span></span><input aria-label={control.label} type="range" min={control.min} max={control.max} step=".01" value={manualBody[control.key]} onChange={e => update({ [control.key]: Number(e.target.value) })} className="w-full accent-teal-400 cursor-pointer" /></label>)}
+            <Button size="sm" variant="ghost" onClick={() => update(athletePresets.balanced.morph)}>Về dáng cân đối</Button>
+            <p className="text-[11px] text-slate-500">Thanh trượt thể hiện mức tùy chỉnh hình ảnh, không phải tỷ lệ số đo. Bản xem thử không sửa phiếu InBody.</p>
+          </> : <p className="text-xs leading-relaxed text-slate-400">Hình thể theo phiếu đo đang chọn hoặc mục tiêu. Chuyển sang “Tự tùy chỉnh” để thử các dáng người và điều chỉnh riêng bốn vùng cơ thể.</p>}
+        </CardContent></Card>
+      </div>
+    </div>
+    <BodyTargets />
+    <CosmeticRewards />
+  </div>
 }

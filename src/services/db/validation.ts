@@ -15,11 +15,11 @@ const optional = new Set(['source', 'notes', 'secondaryMuscles', 'instructionsVi
   'inBodyScore', 'previousWeightKg', 'unlockedAt', 'headgear', 'wristWraps', 'liftingBelt', 'kneeSleeves',
   'auraColor', 'status', 'startedAt', 'kind', 'value', 'weightKg', 'sessionId', 'editOf', 'visualSource', 'appearance',
   'overallVolume', 'upperBodyMuscle', 'lowerBodyMuscle', 'armProportion', 'legProportion', 'trunkProportion',
-  'periodStart', 'periodEnd', 'questKind', 'rewardTitle', 'rewardAccent', 'planId', 'plannedDate'])
+  'periodStart', 'periodEnd', 'questKind', 'rewardTitle', 'rewardAccent', 'planId', 'plannedDate', 'hairColor'])
 const extras = { source: 'real', status: 'completed', startedAt: 0, kind: 'weight', value: 0,
   weightKg: 0, sessionId: '', rpe: 0, isWarmup: false, isPr: false, notes: '', unlockedAt: '',
   inBodyScore: 0, previousWeightKg: 0, instructionsVi: '', secondaryMuscles: [''],
-  headgear: '', wristWraps: '', liftingBelt: '', kneeSleeves: '', auraColor: '', editOf: '', visualSource: 'measurement',
+  headgear: '', wristWraps: '', liftingBelt: '', kneeSleeves: '', auraColor: '', editOf: '', visualSource: 'measurement', hairColor: '#30231e',
   appearance: { preset: 'forge', skinColor: '#a67758', clothingColor: '#263b50', accentColor: '#14b8a6', clothing: 'training' },
   overallVolume: 0, upperBodyMuscle: 0, lowerBodyMuscle: 0, armProportion: 0, legProportion: 0, trunkProportion: 0,
   periodStart: '', periodEnd: '', questKind: 'workout-day', rewardTitle: '', rewardAccent: '#14b8a6', planId: '', plannedDate: '' }
@@ -70,7 +70,7 @@ function shape(value: unknown, template: unknown, key = ''): void {
     if (typeof value === 'string') {
       if (value.length > 10000 || (['id', 'name', 'nameVi', 'nameEn', 'title', 'exerciseId', 'userId', 'exerciseName'].includes(key) && !value.trim())) throw new Error(`Chuỗi ${key} không hợp lệ.`)
       if (enums[key] && !enums[key].includes(value)) throw new Error(`${key} không được hỗ trợ.`)
-      if (['skinColor', 'clothingColor', 'accentColor', 'rewardAccent'].includes(key) && !/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error('Màu cần có dạng #RRGGBB.')
+      if (['skinColor', 'hairColor', 'clothingColor', 'accentColor', 'rewardAccent'].includes(key) && !/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error('Màu cần có dạng #RRGGBB.')
       if (['date', 'deadline', 'achievedDate', 'createdAt', 'unlockedAt', 'periodStart', 'periodEnd', 'plannedDate'].includes(key) || (key === 'lastActiveDate' && value)) {
         if (!/^\d{4}-\d{2}-\d{2}/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value.slice(0, 10)) throw new Error(`Ngày ${key} không hợp lệ.`)
       }

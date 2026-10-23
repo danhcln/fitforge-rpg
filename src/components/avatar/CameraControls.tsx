@@ -33,9 +33,9 @@ const PRESET_CONFIGS: Record<CameraPreset, { position: [number, number, number];
   'back': { position: [0, 0.85, -2.6], target: [0, 0.85, 0] },
   'side-left': { position: [-2.6, 0.85, 0], target: [0, 0.85, 0] },
   'side-right': { position: [2.6, 0.85, 0], target: [0, 0.85, 0] },
-  'full-body': { position: [0, 0.85, 2.8], target: [0, 0.85, 0] },
+  'full-body': { position: [0, 0.95, 3.3], target: [0, 0.95, 0] },
   'upper-body': { position: [0, 1.25, 1.6], target: [0, 1.25, 0] },
-  'face': { position: [0, 1.52, 0.95], target: [0, 1.52, 0] },
+  'face': { position: [0, 1.70, 0.85], target: [0, 1.70, 0] },
   'reset': { position: [0, 0.85, 2.6], target: [0, 0.85, 0] },
 }
 
@@ -116,7 +116,7 @@ export const CameraControls = forwardRef<CameraControlsHandle, CameraControlsPro
       maxDistance={6.0}
       minPolarAngle={Math.PI / 12}
       maxPolarAngle={Math.PI * 0.52}
-      target={[0, 0.85, 0]}
+      target={[0, 0.95, 0]}
     />
   )
 })

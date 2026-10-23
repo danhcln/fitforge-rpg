@@ -21,6 +21,7 @@ export interface BodyMorphParameters {
 export interface CharacterAppearance {
   preset: 'forge' | 'scout' | 'guardian'
   skinColor: string
+  hairColor?: string
   clothingColor: string
   accentColor: string
   clothing: 'training' | 'suit' | 'shorts'

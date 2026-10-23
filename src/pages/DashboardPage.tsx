@@ -4,7 +4,8 @@ import { useUserStore, useWorkoutStore, useCharacterStore } from '@/stores'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { AvatarCanvas } from '@/components/avatar'
+import { AthleteViewer } from '@/components/avatar/AthleteViewer'
+import { athleteStyles } from '@/services/character/athlete'
 import { PersonalRecords, ExerciseProgress } from '@/components/WorkoutHistory'
 import { BodyOverview } from '@/components/BodyComposition'
 import { useInBodyStore } from '@/stores'
@@ -21,7 +22,7 @@ export const DashboardPage: React.FC = () => {
   const { user } = useUserStore()
 
   const { sessions } = useWorkoutStore()
-  const { character, setMode, goalBodies, selectedGoalId } = useCharacterStore()
+  const { character, goalBodies, selectedGoalId } = useCharacterStore()
 
   const latestSession = sessions[0]
   const { latestMeasurement, measurements } = useInBodyStore()
@@ -97,14 +98,11 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <div className="mt-3">
-              <AvatarCanvas
-                currentMorph={current.morph}
-                goalMorph={goal.morph}
-                appearance={current.appearance}
+              <AthleteViewer
+                morph={character.mode === 'goal' ? goal.morph : current.morph}
+                appearance={character.appearance ?? athleteStyles.forge}
                 label={character.visualSource === 'manual' ? 'Bản xem thử thủ công' : character.mode === 'goal' ? 'Mục tiêu · mô phỏng giả định' : `Phiếu hiện tại · ${latestMeasurement?.date ?? 'chưa có số đo'}`}
-                mode={character.mode}
-                onModeChange={setMode}
-                height="380px"
+                compact
               />
             </div>
 

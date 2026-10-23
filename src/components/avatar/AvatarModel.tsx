@@ -132,4 +132,4 @@ export function AvatarModel({
 }
 
 // Preload the GLB model for faster rendering
-useGLTF.preload('/models/gym_avatar_v3.glb')
+// Legacy MPFB viewer is retained for old tooling; the athlete model preloads separately.
